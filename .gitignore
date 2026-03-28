@@ -1,5 +1,21 @@
-/.worktrees/
-/node_modules/
-/dist/
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+target/
+
+# Logs
 *.log
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Worktrees (no longer used)
+/worktrees/

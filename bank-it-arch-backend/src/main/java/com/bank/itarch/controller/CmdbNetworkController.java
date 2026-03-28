@@ -1,0 +1,59 @@
+package com.bank.itarch.controller;
+
+import com.bank.itarch.common.PageQuery;
+import com.bank.itarch.common.PageResult;
+import com.bank.itarch.common.Result;
+import com.bank.itarch.model.entity.CmdbNetwork;
+import com.bank.itarch.service.CmdbNetworkService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/v1/cmdb/networks")
+@RequiredArgsConstructor
+@Tag(name = "CMDB-网络设备管理")
+public class CmdbNetworkController {
+
+    private final CmdbNetworkService service;
+
+    @GetMapping
+    @Operation(summary = "网络设备列表")
+    public Result<PageResult<CmdbNetwork>> list(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer pageSize,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long departmentId) {
+        PageQuery query = new PageQuery();
+        query.setPage(page);
+        query.setPageSize(pageSize);
+        return Result.success(service.pageQuery(query, keyword, status, departmentId));
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "网络设备详情")
+    public Result<CmdbNetwork> getById(@PathVariable Long id) {
+        return Result.success(service.detail(id));
+    }
+
+    @PostMapping
+    @Operation(summary = "创建网络设备")
+    public Result<CmdbNetwork> create(@RequestBody CmdbNetwork entity) {
+        return Result.success("创建成功", service.create(entity));
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "更新网络设备")
+    public Result<CmdbNetwork> update(@PathVariable Long id, @RequestBody CmdbNetwork entity) {
+        return Result.success("更新成功", service.update(id, entity));
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "删除网络设备")
+    public Result<Void> delete(@PathVariable Long id) {
+        service.delete(id);
+        return Result.success("删除成功", null);
+    }
+}
