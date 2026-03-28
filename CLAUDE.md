@@ -6,24 +6,24 @@
 
 银行IT架构管理平台 - 用于管理银行IT基础设施、应用架构、技术栈、数据流和审批流程的综合管理平台。
 
-**这是一个 git worktree 仓库**，实际项目代码位于 `.worktrees/development/`：
-- 后端：`.worktrees/development/bank-it-arch-backend/`
-- 前端：`.worktrees/development/bank-it-arch-frontend/`
-- 数据库：`.worktrees/development/database/`
-- 文档：`.worktrees/development/docs/`
+**项目代码位于仓库根目录：**
+- 后端：`bank-it-arch-backend/`
+- 前端：`bank-it-arch-frontend/`
+- 数据库：`database/`
+- 文档：`docs/`
 
 ## 构建与开发命令
 
 ### 后端 (Spring Boot 3.2.0 + Java 17)
 ```bash
-cd .worktrees/development/bank-it-arch-backend
+cd bank-it-arch-backend
 mvn compile                    # 编译
 mvn spring-boot:run            # 本地运行
 ```
 
 ### 前端 (Vue 3 + Vite)
 ```bash
-cd .worktrees/development/bank-it-arch-frontend
+cd bank-it-arch-frontend
 npm install                    # 安装依赖
 npm run dev                    # 开发服务器 (http://localhost:5173)
 npm run build                  # 生产构建
@@ -32,7 +32,7 @@ npm run build                  # 生产构建
 ### 数据库
 ```bash
 # MySQL 8.0 初始化
-mysql -u root -p < .worktrees/development/database/init.sql
+mysql -u root -p < database/init.sql
 ```
 
 ## 架构
