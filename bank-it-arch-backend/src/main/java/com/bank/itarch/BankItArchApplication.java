@@ -5,7 +5,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-@MapperScan("com.bank.itarch.mapper")
+@MapperScan({"com.bank.itarch.mapper", "com.bank.itarch.meta.mapper"})
 public class BankItArchApplication {
     public static void main(String[] args) {
         SpringApplication.run(BankItArchApplication.class, args);

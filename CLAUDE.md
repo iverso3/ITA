@@ -104,3 +104,19 @@ src/
 
 - **后端：** Spring Boot 3.2.0, MyBatis-Plus 3.5.5, MySQL 8.0, Redis, JWT (jjwt 0.12.3), Knife4j (API文档), Hutool 5.8.23
 - **前端：** Vue 3.4, Element Plus 2.5.5, ECharts 5.4.3, Pinia 2.1.7, Vue Router 4.2.5, Axios 1.13.6
+
+## 开发注意事项
+
+### 修改代码后必须验证现有功能
+**修改任何代码后，必须确保不影响现有功能。** 每次修改后需要：
+1. 执行 `npm run build`（前端）或 `mvn compile`（后端）确保编译通过
+2. 启动应用并测试相关功能路径，特别是：
+   - 登录/登出流程
+   - 首页/Dashboard 加载
+   - 侧边栏菜单切换和 Tab 切换
+   - 列表页的增删改查操作
+   - 详情页的打开和关闭
+3. 如果修复了一个 bug 而引入了新的 bug，必须立即回滚并重新分析
+
+### 动态路由匹配注意
+Vue Router 4 中 `router.resolve()` 对动态路由（如 `/arch/application/:id`）的行为不稳定。推荐使用自定义的正则匹配函数来查找路由：

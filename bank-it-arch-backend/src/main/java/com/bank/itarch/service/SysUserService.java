@@ -13,6 +13,9 @@ import cn.hutool.crypto.SecureUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 import java.time.LocalDateTime;
 
 @Service
@@ -99,6 +102,13 @@ public class SysUserService extends ServiceImpl<SysUserMapper, SysUser> {
         SysUser user = getById(userInfo.getUserId());
         if (user != null) user.setPassword(null);
         return user;
+    }
+
+    public List<SysUser> listAllSimple() {
+        List<SysUser> users = list(new LambdaQueryWrapper<SysUser>()
+                .select(SysUser::getId, SysUser::getUsername, SysUser::getRealName)
+                .orderByAsc(SysUser::getUsername));
+        return users;
     }
 
     public void updateLoginInfo(Long id, String ip) {

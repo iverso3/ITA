@@ -33,11 +33,25 @@ public class ArchApplicationController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String lifecycle,
-            @RequestParam(required = false) Long departmentId) {
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) String systemLayer,
+            @RequestParam(required = false) String parentAppName) {
         PageQuery query = new PageQuery();
         query.setPage(page);
         query.setPageSize(pageSize);
-        return Result.success(applicationService.pageQuery(query, keyword, status, lifecycle, departmentId));
+        return Result.success(applicationService.pageQuery(query, keyword, status, lifecycle, departmentId, systemLayer, parentAppName));
+    }
+
+    @GetMapping("/applications/layered-tree")
+    @Operation(summary = "获取应用分层树结构")
+    public Result<List<Map<String, Object>>> getLayeredTree() {
+        return Result.success(applicationService.getLayeredTree());
+    }
+
+    @GetMapping("/applications/search")
+    @Operation(summary = "搜索应用（跨层级）")
+    public Result<List<Map<String, Object>>> searchApps(@RequestParam(required = false) String keyword) {
+        return Result.success(applicationService.searchApps(keyword));
     }
 
     @GetMapping("/applications/{id}")
@@ -63,6 +77,28 @@ public class ArchApplicationController {
     public Result<Void> delete(@PathVariable Long id) {
         applicationService.delete(id);
         return Result.success("删除成功", null);
+    }
+
+    @GetMapping("/applications/export")
+    @Operation(summary = "导出应用列表")
+    public Result<List<ArchApplication>> export(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String lifecycle,
+            @RequestParam(required = false) Long departmentId) {
+        List<ArchApplication> list = applicationService.exportList(keyword, status, lifecycle, departmentId);
+        return Result.success(list);
+    }
+
+    @PostMapping("/applications/import")
+    @Operation(summary = "导入应用")
+    public Result<Integer> importApplications(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        try {
+            int count = applicationService.importList(file);
+            return Result.success("成功导入 " + count + " 条数据", count);
+        } catch (Exception e) {
+            return Result.error("导入失败: " + e.getMessage());
+        }
     }
 
     @GetMapping("/applications/{id}/modules")

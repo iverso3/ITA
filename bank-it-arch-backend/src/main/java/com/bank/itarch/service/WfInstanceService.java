@@ -18,7 +18,7 @@ public class WfInstanceService extends ServiceImpl<WfInstanceMapper, WfInstance>
         if (status != null && !status.isEmpty()) {
             wrapper.eq(WfInstance::getStatus, status);
         }
-        wrapper.orderByDesc(WfInstance::getCreateTime);
+        wrapper.orderByDesc(WfInstance::getStartTime);
         Page<WfInstance> result = page(page, wrapper);
         return PageResult.of(result.getRecords(), result.getTotal(), query.getPage(), query.getPageSize());
     }

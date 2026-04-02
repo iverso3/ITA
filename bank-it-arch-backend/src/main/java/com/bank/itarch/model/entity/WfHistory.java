@@ -1,12 +1,12 @@
 package com.bank.itarch.model.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
-
 import java.time.LocalDateTime;
 
+/**
+ * 审批历史
+ */
 @Data
 @TableName("wf_history")
 public class WfHistory {

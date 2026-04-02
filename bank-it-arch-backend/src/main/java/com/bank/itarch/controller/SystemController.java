@@ -54,6 +54,12 @@ public class SystemController {
         return Result.success(userService.pageQuery(query, keyword, status, departmentId));
     }
 
+    @GetMapping("/users/all")
+    @Operation(summary = "所有用户下拉列表")
+    public Result<List<SysUser>> listAllUsers() {
+        return Result.success(userService.listAllSimple());
+    }
+
     @GetMapping("/users/{id}")
     @Operation(summary = "用户详情")
     public Result<SysUser> getUser(@PathVariable Long id) {

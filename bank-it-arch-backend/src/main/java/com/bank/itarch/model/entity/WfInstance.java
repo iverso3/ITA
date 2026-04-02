@@ -1,15 +1,17 @@
 package com.bank.itarch.model.entity;
 
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-
 import java.time.LocalDateTime;
 
+/**
+ * 流程实例
+ */
 @Data
-@EqualsAndHashCode(callSuper = true)
 @TableName("wf_instance")
-public class WfInstance extends BaseEntity {
+public class WfInstance {
+    @TableId(type = IdType.AUTO)
+    private Long id;
     private String instanceCode;
     private Long definitionId;
     private String definitionName;

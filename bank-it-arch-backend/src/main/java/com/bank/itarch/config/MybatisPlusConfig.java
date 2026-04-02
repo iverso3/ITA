@@ -27,14 +27,21 @@ public class MybatisPlusConfig {
             public void insertFill(MetaObject metaObject) {
                 this.strictInsertFill(metaObject, "createTime", LocalDateTime.class, LocalDateTime.now());
                 this.strictInsertFill(metaObject, "updateTime", LocalDateTime.class, LocalDateTime.now());
+                this.strictInsertFill(metaObject, "createDatetime", LocalDateTime.class, LocalDateTime.now());
+                this.strictInsertFill(metaObject, "updateDatetime", LocalDateTime.class, LocalDateTime.now());
                 this.strictInsertFill(metaObject, "creator", String.class, "system");
                 this.strictInsertFill(metaObject, "modifier", String.class, "system");
+                this.strictInsertFill(metaObject, "createUserId", String.class, "system");
+                this.strictInsertFill(metaObject, "updateUserId", String.class, "system");
+                this.strictInsertFill(metaObject, "logicStatus", String.class, "0");
             }
 
             @Override
             public void updateFill(MetaObject metaObject) {
                 this.strictUpdateFill(metaObject, "updateTime", LocalDateTime.class, LocalDateTime.now());
+                this.strictUpdateFill(metaObject, "updateDatetime", LocalDateTime.class, LocalDateTime.now());
                 this.strictUpdateFill(metaObject, "modifier", String.class, "system");
+                this.strictUpdateFill(metaObject, "updateUserId", String.class, "system");
             }
         };
     }

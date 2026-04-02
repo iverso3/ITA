@@ -1,10 +1,78 @@
-// Bank IT Architecture Platform - Executive Dark Theme
-// Sophisticated, professional design for enterprise banking
+// Bank IT Architecture Platform - Day/Night Theme System
+// Light mode as default, Night mode with .theme-night class
 
 // ===========================================
-// CSS Variables - Executive Dark Theme
+// CSS Variables - Day Mode (Default - Light)
 // ===========================================
 :root {
+  // Primary Colors - Royal Navy
+  --primary-dark: #1a3a5c;
+  --primary-darker: #0f2847;
+  --primary: #2563eb;
+  --primary-light: #3b82f6;
+  --primary-lighter: #60a5fa;
+
+  // Accent - Refined Teal
+  --accent: #0d9488;
+  --accent-light: #14b8a6;
+  --accent-dark: #0f766e;
+
+  // Status Colors
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --info: #0284c7;
+
+  // Neutrals - Warm Light
+  --bg-dark: #f8fafc;
+  --bg-dark-2: #f1f5f9;
+  --bg-dark-3: #e2e8f0;
+  --bg-card: #ffffff;
+  --bg-hover: #f1f5f9;
+  --border: #cbd5e1;
+  --border-light: #e2e8f0;
+
+  // Text - Deep Slate
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --text-accent: var(--accent);
+
+  // Shadows - Soft and Warm
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.1);
+  --shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.12);
+  --shadow-glow: 0 0 20px rgba(37, 99, 235, 0.1);
+
+  // Typography
+  --font-display: 'Noto Serif SC', 'Source Han Serif SC', serif;
+  --font-body: 'Noto Sans SC', 'Source Han Sans SC', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  // Spacing
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+
+  // Border Radius
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  // Transitions
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 400ms ease;
+}
+
+// ===========================================
+// CSS Variables - Night Mode (Dark Theme)
+// ===========================================
+:root.theme-night {
   // Primary Colors - Deep Navy Executive
   --primary-dark: #0a1628;
   --primary-darker: #060d18;
@@ -43,30 +111,6 @@
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
   --shadow-glow: 0 0 20px rgba(201, 169, 98, 0.15);
-
-  // Typography
-  --font-display: 'Noto Serif SC', 'Source Han Serif SC', serif;
-  --font-body: 'Noto Sans SC', 'Source Han Sans SC', -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-
-  // Spacing
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
-  --space-2xl: 48px;
-
-  // Border Radius
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-
-  // Transitions
-  --transition-fast: 150ms ease;
-  --transition-base: 250ms ease;
-  --transition-slow: 400ms ease;
 }
 
 // ===========================================
@@ -235,6 +279,18 @@ body .el-table .el-table__body-wrapper .el-table__body tbody .el-table__row:not(
   }
 }
 
+// Fix browser autofill background color
+input:-webkit-autofill,
+input:autofill,
+textarea:-webkit-autofill,
+textarea:autofill,
+select:-webkit-autofill,
+select:autofill {
+  -webkit-box-shadow: 0 0 0 1000px var(--el-input-bg-color, var(--bg-dark-2)) inset !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
 .el-select {
   --el-select-border-color-hover: var(--border-light);
 }
@@ -359,7 +415,8 @@ body .el-table .el-table__body-wrapper .el-table__body tbody .el-table__row:not(
 
 .app-main {
   display: flex;
-  min-height: calc(100vh - 64px);
+  height: calc(100vh - 64px);
+  overflow: hidden;
 }
 
 .app-sidebar {
@@ -370,6 +427,7 @@ body .el-table .el-table__body-wrapper .el-table__body tbody .el-table__row:not(
   flex-direction: column;
   flex-shrink: 0;
   transition: width 0.3s ease;
+  overflow: hidden;
 
   .el-menu {
     border-right: none;
@@ -417,8 +475,21 @@ body .el-table .el-table__body-wrapper .el-table__body tbody .el-table__row:not(
 
   .el-sub-menu {
     .el-sub-menu__title {
+      padding-left: 20px !important;
       &:hover {
         background: var(--bg-hover);
+      }
+    }
+
+    .el-sub-menu {
+      .el-sub-menu__title {
+        padding-left: 52px !important;
+      }
+
+      .el-menu-item {
+        padding-left: 72px !important;
+        height: 44px;
+        line-height: 44px;
       }
     }
 
@@ -427,6 +498,63 @@ body .el-table .el-table__body-wrapper .el-table__body tbody .el-table__row:not(
       height: 44px;
       line-height: 44px;
     }
+
+    > .el-sub-menu__title {
+      padding-left: 20px !important;
+    }
+  }
+
+  // Element Plus menu 层级缩进
+  .el-menu-item,
+  .el-sub-menu .el-menu-item {
+    padding-left: 52px !important;
+    height: 44px;
+    line-height: 44px;
+  }
+
+  // 一级菜单项（直接位于 el-menu 下的）
+  .el-menu > .el-menu-item {
+    padding-left: 20px !important;
+    height: 48px;
+    line-height: 48px;
+  }
+
+  // el-sub-menu 下的直接子 el-menu-item（二级菜单项）
+  .el-menu > .el-sub-menu > .el-menu-item {
+    padding-left: 52px !important;
+    height: 48px;
+    line-height: 48px;
+  }
+
+  // 三级及更深层级菜单项
+  .el-menu > .el-sub-menu > .el-sub-menu > .el-menu-item,
+  .el-menu > .el-sub-menu > .el-menu--inline > .el-menu-item {
+    padding-left: 72px !important;
+    height: 44px;
+    line-height: 44px;
+  }
+
+  // 确保所有层级的 el-menu-item 都有缩进（最高优先级）
+  .app-sidebar__menu .el-menu-item {
+    padding-left: 52px !important;
+  }
+
+  // 一级菜单项特殊处理
+  .app-sidebar__menu > .el-menu-item {
+    padding-left: 20px !important;
+    height: 48px !important;
+    line-height: 48px !important;
+  }
+
+  // 二级菜单项
+  .app-sidebar__menu > .el-sub-menu > .el-menu-item {
+    padding-left: 52px !important;
+  }
+
+  // 三级及更深层级
+  .app-sidebar__menu > .el-sub-menu > .el-sub-menu > .el-menu-item,
+  .app-sidebar__menu > .el-sub-menu > .el-menu--inline > .el-menu-item {
+    padding-left: 72px !important;
   }
 
   .el-sub-menu.is-active > .el-sub-menu__title {
@@ -452,8 +580,18 @@ body .el-table .el-table__body-wrapper .el-table__body tbody .el-table__row:not(
 
 .app-content {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+}
+
+.tab-content {
+  flex: 1;
   padding: var(--space-xl);
   overflow-x: hidden;
+  overflow-y: auto;
+  background: var(--bg-card);
 }
 
 // ===========================================
@@ -778,3 +916,622 @@ body .el-table .el-table__body-wrapper .el-table__body tbody .el-table__row:not(
 .p-md { padding: var(--space-md); }
 .p-lg { padding: var(--space-lg); }
 .p-xl { padding: var(--space-xl); }
+
+// ===========================================
+// Light Theme (Day Mode) - Refined Corporate
+// ===========================================
+:root,
+:root.theme-light {
+  // Primary Colors - Royal Navy
+  --primary-dark: #1a3a5c;
+  --primary-darker: #0f2847;
+  --primary: #2563eb;
+  --primary-light: #3b82f6;
+  --primary-lighter: #60a5fa;
+
+  // Accent - Refined Teal
+  --accent: #0d9488;
+  --accent-light: #14b8a6;
+  --accent-dark: #0f766e;
+
+  // Status Colors
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --info: #0284c7;
+
+  // Neutrals - Warm Light
+  --bg-dark: #f8fafc;
+  --bg-dark-2: #f1f5f9;
+  --bg-dark-3: #e2e8f0;
+  --bg-card: #ffffff;
+  --bg-hover: #f1f5f9;
+  --border: #cbd5e1;
+  --border-light: #e2e8f0;
+
+  // Text - Deep Slate
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --text-accent: var(--accent);
+
+  // Shadows - Soft and Warm
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.1);
+  --shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.12);
+  --shadow-glow: 0 0 20px rgba(37, 99, 235, 0.1);
+}
+
+// ===========================================
+// Light Theme - Layout Components
+// ===========================================
+.theme-light {
+  .app-container {
+    background: var(--bg-dark);
+  }
+
+  .app-header {
+    background: linear-gradient(180deg, #ffffff 0%, var(--bg-dark-2) 100%);
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+
+    .logo__text {
+      color: var(--text-primary);
+    }
+  }
+
+  .app-main {
+    background: var(--bg-dark);
+  }
+
+  .app-sidebar {
+    background: #ffffff;
+    border-right: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+
+    .el-menu-item,
+    .el-sub-menu__title {
+      color: var(--text-secondary);
+
+      &:hover {
+        background: var(--bg-hover);
+        color: var(--text-primary);
+      }
+    }
+
+    .el-menu-item.is-active {
+      background: linear-gradient(90deg, rgba(37, 99, 235, 0.08) 0%, transparent 100%);
+      color: var(--primary);
+
+      &::before {
+        background: var(--primary);
+      }
+    }
+
+    .el-sub-menu.is-active > .el-sub-menu__title {
+      color: var(--primary);
+    }
+
+    .sidebar-collapse-toggle {
+      background: var(--bg-dark-2);
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+
+      &:hover {
+        background: var(--bg-hover);
+        color: var(--text-primary);
+      }
+    }
+  }
+
+  .app-content {
+    background: var(--bg-dark);
+  }
+
+  .tab-content {
+    background: var(--bg-dark);
+  }
+
+  // Light theme card with subtle shadow
+  .page-card {
+    background: #ffffff;
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-sm);
+
+    &:hover {
+      box-shadow: var(--shadow-md);
+      border-color: var(--border);
+    }
+  }
+
+  // Stat cards with light gradient
+  .stat-card {
+    background: linear-gradient(135deg, #ffffff 0%, var(--bg-dark-2) 100%);
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-sm);
+
+    &:hover {
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+    }
+
+    &::before {
+      background: linear-gradient(90deg, var(--primary) 0%, transparent 100%);
+    }
+  }
+
+  // Status badges with refined colors
+  .status-badge {
+    &--online {
+      background: rgba(5, 150, 105, 0.1);
+      color: var(--success);
+      border-color: rgba(5, 150, 105, 0.2);
+    }
+
+    &--offline {
+      background: rgba(148, 163, 184, 0.15);
+      color: var(--text-muted);
+      border-color: rgba(148, 163, 184, 0.2);
+    }
+
+    &--warning {
+      background: rgba(217, 119, 6, 0.1);
+      color: var(--warning);
+      border-color: rgba(217, 119, 6, 0.2);
+    }
+
+    &--error {
+      background: rgba(220, 38, 38, 0.1);
+      color: var(--danger);
+      border-color: rgba(220, 38, 38, 0.2);
+    }
+  }
+
+  // Page headers with accent underline
+  .page-header {
+    &__title {
+      color: var(--text-primary);
+
+      &::before {
+        background: linear-gradient(180deg, var(--primary) 0%, var(--primary-light) 100%);
+      }
+    }
+
+    &__desc {
+      color: var(--text-secondary);
+    }
+  }
+}
+
+// ===========================================
+// Light Theme - Element Plus Overrides
+// ===========================================
+.theme-light {
+  .el-button {
+    --el-button-bg-color: #ffffff;
+    --el-button-border-color: var(--border);
+    --el-button-text-color: var(--text-primary);
+    --el-button-hover-bg-color: var(--bg-hover);
+    --el-button-hover-border-color: var(--border);
+    --el-button-active-bg-color: var(--bg-dark-3);
+    --el-button-active-border-color: var(--border);
+    box-shadow: var(--shadow-sm);
+
+    &--primary {
+      --el-button-bg-color: var(--primary);
+      --el-button-border-color: var(--primary);
+      --el-button-text-color: #ffffff;
+      --el-button-hover-bg-color: var(--primary-light);
+      --el-button-hover-border-color: var(--primary-light);
+      --el-button-active-bg-color: var(--primary-dark);
+      --el-button-active-border-color: var(--primary-dark);
+    }
+  }
+
+  .el-card {
+    --el-card-bg-color: #ffffff;
+    --el-card-border-color: var(--border-light);
+    background: #ffffff;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .el-table {
+    --el-table-bg-color: transparent;
+    --el-table-tr-bg-color: transparent;
+    --el-table-header-bg-color: var(--bg-dark-2);
+    --el-table-row-hover-bg-color: var(--bg-hover);
+    --el-table-border-color: var(--border-light);
+    --el-table-text-color: var(--text-primary);
+    --el-table-header-text-color: var(--text-secondary);
+
+    th.el-table__cell {
+      background: var(--bg-dark-2);
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+  }
+
+  // Table stripe with subtle distinction
+  .el-table .el-table__body-wrapper .el-table__body tbody .el-table__row--striped td.el-table__cell {
+    background: var(--bg-dark-2) !important;
+  }
+
+  .el-table .el-table__body-wrapper .el-table__body tbody .el-table__row:not(.el-table__row--striped) td.el-table__cell {
+    background: #ffffff !important;
+  }
+
+  .el-input {
+    --el-input-bg-color: #ffffff;
+    --el-input-border-color: var(--border);
+    --el-input-text-color: var(--text-primary);
+    --el-input-placeholder-color: var(--text-muted);
+    --el-input-hover-border-color: var(--primary-light);
+    --el-input-focus-border-color: var(--primary);
+
+    .el-input__wrapper {
+      background: #ffffff !important;
+      box-shadow: 0 0 0 1px var(--border) inset !important;
+
+      &:hover {
+        box-shadow: 0 0 0 1px var(--primary-light) inset !important;
+      }
+
+      &.is-focus {
+        box-shadow: 0 0 0 1px var(--primary) inset, var(--shadow-glow) !important;
+      }
+    }
+  }
+
+  .el-select-dropdown {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-md);
+  }
+
+  .el-dialog {
+    --el-dialog-bg-color: #ffffff;
+    background: #ffffff;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+
+    .el-dialog__header {
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .el-dialog__title {
+      color: var(--text-primary);
+    }
+  }
+
+  .el-tag {
+    --el-tag-bg-color: var(--bg-dark-2);
+    --el-tag-border-color: var(--border);
+    --el-tag-text-color: var(--text-secondary);
+
+    &--success {
+      --el-tag-bg-color: rgba(5, 150, 105, 0.1);
+      --el-tag-border-color: rgba(5, 150, 105, 0.2);
+      --el-tag-text-color: var(--success);
+    }
+
+    &--warning {
+      --el-tag-bg-color: rgba(217, 119, 6, 0.1);
+      --el-tag-border-color: rgba(217, 119, 6, 0.2);
+      --el-tag-text-color: var(--warning);
+    }
+
+    &--danger {
+      --el-tag-bg-color: rgba(220, 38, 38, 0.1);
+      --el-tag-border-color: rgba(220, 38, 38, 0.2);
+      --el-tag-text-color: var(--danger);
+    }
+
+    &--info {
+      --el-tag-bg-color: rgba(2, 132, 199, 0.1);
+      --el-tag-border-color: rgba(2, 132, 199, 0.2);
+      --el-tag-text-color: var(--info);
+    }
+  }
+
+  .el-pagination {
+    --el-pagination-bg-color: #ffffff;
+    --el-pagination-text-color: var(--text-secondary);
+    --el-pagination-button-bg-color: #ffffff;
+    --el-pagination-hover-color: var(--primary);
+
+    .el-pager li {
+      background: #ffffff;
+      border: 1px solid var(--border);
+    }
+
+    .el-pager li.is-active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #ffffff;
+    }
+  }
+
+  .el-menu {
+    --el-menu-bg-color: transparent;
+    --el-menu-text-color: var(--text-secondary);
+    --el-menu-hover-bg-color: var(--bg-hover);
+    --el-menu-active-color: var(--primary);
+    --el-menu-item-height: 48px;
+    border: none !important;
+    background: transparent;
+  }
+
+  .el-dropdown-menu {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-md);
+
+    .el-dropdown-menu__item {
+      color: var(--text-primary);
+
+      &:hover {
+        background: var(--bg-hover);
+        color: var(--primary);
+      }
+    }
+  }
+
+  .el-badge__content {
+    --el-badge-bg-color: var(--danger);
+  }
+}
+
+// ===========================================
+// Light Theme - Scrollbars (Default)
+// ===========================================
+::-webkit-scrollbar-track {
+  background: var(--bg-dark-2);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+
+  &:hover {
+    background: var(--text-muted);
+  }
+}
+
+// ===========================================
+// Night Mode - Component Overrides
+// ===========================================
+:root.theme-night {
+  // Night mode specific gradients and overrides
+  .app-container {
+    background: var(--bg-dark);
+  }
+
+  .app-header {
+    background: linear-gradient(180deg, var(--bg-dark-2) 0%, var(--bg-dark) 100%);
+    box-shadow: none;
+  }
+
+  .app-main {
+    background: var(--bg-dark);
+  }
+
+  .app-sidebar {
+    background: var(--bg-dark-2);
+    box-shadow: none;
+
+    .el-menu-item.is-active {
+      background: linear-gradient(90deg, rgba(201, 169, 98, 0.1) 0%, transparent 100%);
+
+      &::before {
+        background: var(--accent);
+      }
+    }
+
+    .sidebar-collapse-toggle {
+      background: var(--bg-dark-3);
+      border-top: 1px solid var(--border);
+    }
+  }
+
+  .app-content {
+    background: var(--bg-dark);
+  }
+
+  .tab-content {
+    background: var(--bg-card);
+  }
+
+  .page-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+
+    &:hover {
+      border-color: var(--border-light);
+    }
+  }
+
+  .stat-card {
+    background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-dark-3) 100%);
+    border: 1px solid var(--border);
+
+    &::before {
+      background: linear-gradient(90deg, var(--accent) 0%, transparent 100%);
+    }
+  }
+
+  .status-badge {
+    &--online {
+      background: rgba(46, 204, 113, 0.15);
+      color: var(--success);
+      border-color: rgba(46, 204, 113, 0.3);
+    }
+
+    &--offline {
+      background: rgba(90, 122, 159, 0.15);
+      color: var(--text-muted);
+      border-color: rgba(90, 122, 159, 0.3);
+    }
+
+    &--warning {
+      background: rgba(243, 156, 18, 0.15);
+      color: var(--warning);
+      border-color: rgba(243, 156, 18, 0.3);
+    }
+
+    &--error {
+      background: rgba(231, 76, 60, 0.15);
+      color: var(--danger);
+      border-color: rgba(231, 76, 60, 0.3);
+    }
+  }
+
+  .page-header__title::before {
+    background: linear-gradient(180deg, var(--accent) 0%, var(--accent-dark) 100%);
+  }
+
+  // Element Plus overrides for night mode
+  .el-button {
+    --el-button-bg-color: var(--bg-card);
+    --el-button-border-color: var(--border);
+    --el-button-text-color: var(--text-primary);
+    --el-button-hover-bg-color: var(--bg-hover);
+    --el-button-hover-border-color: var(--border-light);
+
+    &--primary {
+      --el-button-bg-color: var(--primary);
+      --el-button-border-color: var(--primary-light);
+      --el-button-hover-bg-color: var(--primary-light);
+      --el-button-hover-border-color: var(--primary-lighter);
+    }
+  }
+
+  .el-card {
+    --el-card-bg-color: var(--bg-card);
+    --el-card-border-color: var(--border);
+    background: var(--bg-card);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .el-table {
+    --el-table-bg-color: transparent;
+    --el-table-tr-bg-color: transparent;
+    --el-table-header-bg-color: var(--bg-dark-3);
+    --el-table-row-hover-bg-color: var(--bg-hover);
+    --el-table-border-color: var(--border);
+    --el-table-text-color: var(--text-primary);
+    --el-table-header-text-color: var(--text-secondary);
+
+    th.el-table__cell {
+      background: var(--bg-dark-3);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+  }
+
+  .el-table .el-table__body-wrapper .el-table__body tbody .el-table__row--striped td.el-table__cell {
+    background: var(--bg-dark-2) !important;
+  }
+
+  .el-table .el-table__body-wrapper .el-table__body tbody .el-table__row:not(.el-table__row--striped) td.el-table__cell {
+    background: var(--bg-card) !important;
+  }
+
+  .el-input {
+    --el-input-bg-color: var(--bg-dark-2);
+    --el-input-border-color: var(--border);
+    --el-input-text-color: var(--text-primary);
+    --el-input-placeholder-color: var(--text-muted);
+
+    .el-input__wrapper {
+      background: var(--bg-dark-2) !important;
+      box-shadow: 0 0 0 1px var(--border) inset !important;
+
+      &:hover {
+        box-shadow: 0 0 0 1px var(--border-light) inset !important;
+      }
+
+      &.is-focus {
+        box-shadow: 0 0 0 1px var(--primary-light) inset, var(--shadow-glow) !important;
+      }
+    }
+  }
+
+  .el-select-dropdown {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+  }
+
+  .el-dialog {
+    --el-dialog-bg-color: var(--bg-card);
+    background: var(--bg-card);
+
+    .el-dialog__header {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .el-dialog__title {
+      color: var(--text-primary);
+    }
+  }
+
+  .el-tag {
+    --el-tag-bg-color: var(--bg-dark-3);
+    --el-tag-border-color: var(--border);
+    --el-tag-text-color: var(--text-primary);
+
+    &--success {
+      --el-tag-bg-color: rgba(46, 204, 113, 0.15);
+      --el-tag-border-color: rgba(46, 204, 113, 0.3);
+      --el-tag-text-color: var(--success);
+    }
+
+    &--warning {
+      --el-tag-bg-color: rgba(243, 156, 18, 0.15);
+      --el-tag-border-color: rgba(243, 156, 18, 0.3);
+      --el-tag-text-color: var(--warning);
+    }
+
+    &--danger {
+      --el-tag-bg-color: rgba(231, 76, 60, 0.15);
+      --el-tag-border-color: rgba(231, 76, 60, 0.3);
+      --el-tag-text-color: var(--danger);
+    }
+
+    &--info {
+      --el-tag-bg-color: rgba(52, 152, 219, 0.15);
+      --el-tag-border-color: rgba(52, 152, 219, 0.3);
+      --el-tag-text-color: var(--info);
+    }
+  }
+
+  .el-pagination {
+    --el-pagination-bg-color: var(--bg-dark-2);
+    --el-pagination-text-color: var(--text-secondary);
+    --el-pagination-button-bg-color: var(--bg-dark-3);
+    --el-pagination-hover-color: var(--accent);
+  }
+
+  .el-menu {
+    --el-menu-bg-color: transparent;
+    --el-menu-text-color: var(--text-secondary);
+    --el-menu-hover-bg-color: var(--bg-hover);
+    --el-menu-active-color: var(--accent);
+    background: transparent;
+  }
+
+  .el-dropdown-menu {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+
+    .el-dropdown-menu__item {
+      color: var(--text-primary);
+
+      &:hover {
+        background: var(--bg-hover);
+        color: var(--text-primary);
+      }
+    }
+  }
+}
