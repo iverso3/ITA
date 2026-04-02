@@ -12,6 +12,8 @@ public class ImportResult implements Serializable {
     private Integer total;        // 总行数（不含表头）
     private Integer success;      // 成功行数
     private Integer failed;       // 失败行数
+    private Integer updated;   // 更新行数
+    private Integer created;  // 新增行数
     private List<ImportError> errors = new ArrayList<>();
 
     @Data
@@ -27,10 +29,16 @@ public class ImportResult implements Serializable {
     }
 
     public static ImportResult ok(int total, int success) {
+        return ok(total, success, 0, 0);
+    }
+
+    public static ImportResult ok(int total, int success, int updated, int created) {
         ImportResult result = new ImportResult();
         result.setTotal(total);
         result.setSuccess(success);
         result.setFailed(total - success);
+        result.setUpdated(updated);
+        result.setCreated(created);
         return result;
     }
 
