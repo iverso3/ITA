@@ -3,6 +3,8 @@ package com.bank.itarch.interceptor;
 import cn.hutool.core.util.StrUtil;
 import com.bank.itarch.common.Result;
 import com.bank.itarch.config.JwtConfig;
+import com.bank.itarch.mapper.SysUserMapper;
+import com.bank.itarch.model.entity.SysUser;
 import com.bank.itarch.util.UserContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
@@ -26,6 +28,7 @@ public class JwtInterceptor implements HandlerInterceptor {
 
     private final JwtConfig jwtConfig;
     private final ObjectMapper objectMapper;
+    private final SysUserMapper userMapper;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -52,9 +55,17 @@ public class JwtInterceptor implements HandlerInterceptor {
             List<Long> roleIds = claims.get("roleIds", List.class);
             List<String> roleCodes = claims.get("roleCodes", List.class);
 
+            // 查询用户的realName
+            String realName = username;
+            SysUser user = userMapper.selectById(userId);
+            if (user != null && user.getRealName() != null && !user.getRealName().isEmpty()) {
+                realName = user.getRealName();
+            }
+
             UserContext.UserInfo userInfo = new UserContext.UserInfo();
             userInfo.setUserId(userId);
             userInfo.setUsername(username);
+            userInfo.setRealName(realName);
             userInfo.setRoleIds(roleIds);
             userInfo.setRoleCodes(roleCodes);
             UserContext.setUser(userInfo);

@@ -17,8 +17,8 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="processType" label="流程类型" width="120">
-          <template #default="{ row }"><el-tag size="small">{{ row.processType }}</el-tag></template>
+        <el-table-column prop="definitionName" label="流程类型" width="120">
+          <template #default="{ row }"><el-tag size="small">{{ row.definitionName }}</el-tag></template>
         </el-table-column>
         <el-table-column prop="applicantName" label="申请人" width="100" />
         <el-table-column prop="departmentName" label="部门" width="120" />

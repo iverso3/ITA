@@ -163,7 +163,9 @@ export const wfApi = {
     saveNodes: (definitionId, nodes) => api.put(`/wf/modeler/${definitionId}/nodes`, nodes),
     saveLines: (definitionId, lines) => api.put(`/wf/modeler/${definitionId}/lines`, lines),
     validate: (model) => api.post('/wf/modeler/validate', model),
-    publish: (definitionId, changeLog) => api.post(`/wf/modeler/${definitionId}/publish`, { changeLog })
+    publish: (definitionId, changeLog) => api.post(`/wf/modeler/${definitionId}/publish`, { changeLog }),
+    updateNodeConditionRule: (definitionId, nodeId, conditionRule) =>
+      api.put(`/wf/modeler/${definitionId}/nodes/${nodeId}/conditionRule`, { conditionRule })
   },
 
   // 流程实例
@@ -440,6 +442,7 @@ export const ossImplApplyApi = {
   softwareList: (params) => api.get('/oss/impl/apply/software-list', { params }),
   // 拓展信息
   supplementary: (implApplyNo) => api.get(`/oss/impl/apply/supplementary/${implApplyNo}`),
+  supplementaryByUuid: (uuid) => api.get(`/oss/impl/apply/supplementary/by-uuid/${uuid}`),
   updateSupplementary: (implApplyNo, data) => api.put(`/oss/impl/apply/supplementary/${implApplyNo}`, data),
   // 检查软件名称和版本是否已存在（用于首次引入校验）
   checkDuplicate: (swName, swVersion) => api.get('/oss/impl/apply/check-duplicate', { params: { swName, swVersion } }),
@@ -448,7 +451,26 @@ export const ossImplApplyApi = {
   // 启动审批流程
   startProcess: (data) => api.post('/oss/impl/apply/start-process', data),
   // 获取审批轨迹
-  trace: (implApplyNo) => api.get(`/oss/impl/apply/trace/${implApplyNo}`)
+  trace: (implApplyNo) => api.get(`/oss/impl/apply/trace/${implApplyNo}`),
+  // 上传附件
+  uploadAttachment: (file, implApplyNo) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('implApplyNo', implApplyNo)
+    return api.post('/oss/impl/apply/upload-attachment', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
+  // 上传介质文档
+  uploadMedia: (file, implApplyNo, mediaType) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('implApplyNo', implApplyNo)
+    formData.append('mediaType', mediaType)
+    return api.post('/oss/impl/apply/upload-media', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  }
 }
 
 // ===== 流程角色管理 =====

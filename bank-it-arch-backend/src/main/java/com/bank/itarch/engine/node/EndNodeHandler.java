@@ -21,11 +21,12 @@ public class EndNodeHandler extends AbstractNodeHandler {
 
     @Override
     public void enter(WfEngineContext context, WfToken token) {
-        log.info("流程结束: instanceId={}", token.getInstance().getId());
+        log.info("进入EndNodeHandler: instanceId={}, currentNodeId={}", token.getInstance().getId(), token.getCurrentNodeId());
         super.enter(context, token);
 
         // 标记流程实例为完成
         WfInstance instance = token.getInstance();
+        log.info("EndNodeHandler设置status=COMPLETED: instanceId={}", instance.getId());
         instance.setStatus("COMPLETED");
         instance.setEndTime(LocalDateTime.now());
         instance.setResult("APPROVED");
@@ -38,7 +39,12 @@ public class EndNodeHandler extends AbstractNodeHandler {
         }
 
         // 更新实例状态
-        context.getInstanceMapper().updateById(instance);
+        int rows = context.getInstanceMapper().updateById(instance);
+        log.info("EndNodeHandler更新实例: instanceId={}, status={}, rows={}", instance.getId(), instance.getStatus(), rows);
+
+        // 再次查询确认状态已更新
+        WfInstance verifyInstance = context.getInstanceMapper().selectById(instance.getId());
+        log.info("EndNodeHandler验证实例状态: instanceId={}, verifiedStatus={}", instance.getId(), verifyInstance != null ? verifyInstance.getStatus() : "null");
 
         // 标记令牌为完成
         token.setTokenStatus(WfToken.STATUS_COMPLETED);

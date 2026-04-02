@@ -41,12 +41,6 @@
             <el-descriptions-item label="开源软件名称">{{ applyDetail.swName }}</el-descriptions-item>
             <el-descriptions-item label="开源软件版本">{{ applyDetail.swVersion }}</el-descriptions-item>
             <el-descriptions-item label="开源许可协议">{{ applyDetail.licAbbr }}</el-descriptions-item>
-            <el-descriptions-item label="是否安全工具">{{ applyDetail.secInstrt === '1' ? '是' : '否' }}</el-descriptions-item>
-            <el-descriptions-item label="操作系统">{{ getOsTypeText(applyDetail.osType) }}</el-descriptions-item>
-            <el-descriptions-item label="应用编号">{{ applyDetail.useAppNo || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="投产版本">{{ applyDetail.launchVersion || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="任务编号及名称" :span="2">{{ applyDetail.launchTaskInfo || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="申请说明" :span="2">{{ applyDetail.implCmnt || '-' }}</el-descriptions-item>
           </el-descriptions>
         </div>
 
@@ -93,55 +87,17 @@
                 </el-form-item>
               </el-col>
             </el-row>
-            <el-row :gutter="20">
-              <el-col :span="12">
-                <el-form-item label="是否安全工具">
-                  <el-radio-group v-model="applyForm.secInstrt">
-                    <el-radio label="1">是</el-radio>
-                    <el-radio label="0">否</el-radio>
-                  </el-radio-group>
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="操作系统">
-                  <el-select v-model="applyForm.osType" placeholder="请选择" style="width: 100%">
-                    <el-option label="Windows" value="WINDOWS" />
-                    <el-option label="Linux" value="LINUX" />
-                    <el-option label="macOS" value="MACOS" />
-                    <el-option label="跨平台" value="CROSS_PLATFORM" />
-                  </el-select>
-                </el-form-item>
-              </el-col>
-            </el-row>
-            <el-row :gutter="20">
-              <el-col :span="12">
-                <el-form-item label="应用编号">
-                  <el-input v-model="applyForm.useAppNo" placeholder="请输入" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="投产版本">
-                  <el-input v-model="applyForm.launchVersion" placeholder="请输入" />
-                </el-form-item>
-              </el-col>
-            </el-row>
-            <el-form-item label="任务编号及名称">
-              <el-input v-model="applyForm.launchTaskInfo" placeholder="请输入" />
-            </el-form-item>
-            <el-form-item label="申请说明">
-              <el-input v-model="applyForm.implCmnt" type="textarea" :rows="3" placeholder="请输入" />
-            </el-form-item>
           </el-form>
         </div>
 
         <!-- 评审背景及结论 - 查看模式 -->
         <div v-if="!isStartNode" class="form-section">
           <h4 class="sub-section-title">评审背景及结论</h4>
-          <el-descriptions :column="1" border size="small">
-            <el-descriptions-item label="评审背景">{{ applyDetail.evalBackground || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="系统环境">{{ applyDetail.systemEnv || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="功能介绍">{{ applyDetail.functionIntro || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="评审结论">{{ applyDetail.evalConclusion || '-' }}</el-descriptions-item>
+          <el-descriptions :column="1" border size="small" class="review-descriptions">
+            <el-descriptions-item label="评审背景" label-class-name="review-label">{{ applyDetail.evalBackground || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="系统环境" label-class-name="review-label">{{ applyDetail.systemEnv || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="功能介绍" label-class-name="review-label">{{ applyDetail.functionIntro || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="评审结论" label-class-name="review-label">{{ applyDetail.evalConclusion || '-' }}</el-descriptions-item>
           </el-descriptions>
         </div>
 
@@ -213,6 +169,38 @@
             </el-table>
             <div class="total-score">质量指标总分：{{ qualityTotalScore }} / 100</div>
           </div>
+        </div>
+
+        <!-- 介质信息 -->
+        <div v-if="!isStartNode" class="form-section">
+          <h4 class="sub-section-title">介质信息</h4>
+          <div v-if="!mediaList || mediaList.length === 0" style="text-align: center; padding: 20px; color: #909399;">暂无介质信息</div>
+          <el-table v-else :data="mediaList" border size="small">
+            <el-table-column prop="fileName" label="文件名" min-width="200" show-overflow-tooltip />
+            <el-table-column prop="mediaType" label="介质类型" width="120" align="center">
+              <template #default="{ row }">{{ row.mediaType === 'linux' ? 'Linux' : row.mediaType === 'windows' ? 'Windows' : '-' }}</template>
+            </el-table-column>
+            <el-table-column prop="fileSize" label="文件大小" width="100" align="center">
+              <template #default="{ row }">{{ formatFileSize(row.fileSize) }}</template>
+            </el-table-column>
+          </el-table>
+        </div>
+
+        <!-- 附件信息 -->
+        <div v-if="!isStartNode" class="form-section">
+          <h4 class="sub-section-title">附件信息</h4>
+          <div v-if="!attachmentList || attachmentList.length === 0" style="text-align: center; padding: 20px; color: #909399;">暂无附件信息</div>
+          <el-table v-else :data="attachmentList" border size="small">
+            <el-table-column prop="fileName" label="文件名" min-width="200" show-overflow-tooltip />
+            <el-table-column prop="fileSize" label="文件大小" width="100" align="center">
+              <template #default="{ row }">{{ formatFileSize(row.fileSize) }}</template>
+            </el-table-column>
+            <el-table-column label="操作" width="80" align="center">
+              <template #default="{ row }">
+                <el-button type="primary" text size="small" @click="handleDownload(row)">下载</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
         </div>
 
         <!-- 管理员审批补充信息 - 仅在开源软件管理员审批节点显示 -->
@@ -349,13 +337,19 @@
 
       <!-- 审批操作按钮 -->
       <div v-if="taskData.status === 'PENDING'" class="action-bar">
-        <el-input v-model="opinion" type="textarea" :rows="2" :placeholder="isStartNode ? '请输入修改说明（可选）' : '请输入审批意见（可选）'" style="margin-bottom: 12px;" />
+        <div v-if="!isStartNode" style="margin-bottom: 8px; color: #f56c6c;">* 办件意见必填</div>
+        <el-input v-model="opinion" type="textarea" :rows="2" :placeholder="isStartNode ? '请输入修改说明（可选）' : '请输入审批意见'" style="margin-bottom: 12px;" />
         <div class="action-buttons">
           <el-button @click="handleBack">返回</el-button>
-          <!-- START节点显示"重新提交"，其他节点显示"通过" -->
-          <el-button v-if="isStartNode" type="primary" @click="handleResubmit">重新提交</el-button>
-          <el-button v-else type="primary" @click="handleApprove">通过</el-button>
-          <el-button v-if="!isStartNode" type="danger" @click="handleReject">驳回</el-button>
+          <!-- START节点显示"重新提交"和"撤回"，其他节点显示"通过" -->
+          <template v-if="isStartNode">
+            <el-button type="primary" @click="handleResubmit">重新提交</el-button>
+            <el-button type="info" @click="handleWithdraw">撤回</el-button>
+          </template>
+          <template v-else>
+            <el-button type="primary" @click="handleApprove">通过</el-button>
+            <el-button type="danger" @click="handleReject">驳回</el-button>
+          </template>
         </div>
       </div>
       <div v-else class="action-bar">
@@ -400,10 +394,12 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { wfApi, ossImplApplyApi } from '@/api'
+import { useTabsStore } from '@/store/tabs'
 import dayjs from 'dayjs'
 
 const router = useRouter()
 const route = useRoute()
+const tabsStore = useTabsStore()
 
 const loading = ref(false)
 const taskData = ref({})
@@ -411,6 +407,8 @@ const applyDetail = ref(null)
 const traceData = ref(null)
 const traceLoading = ref(false)
 const opinion = ref('')
+const mediaList = ref([])
+const attachmentList = ref([])
 
 // 是否是START节点（发起人的待办）
 const isStartNode = computed(() => {
@@ -574,6 +572,24 @@ const formatTime = (time) => {
   return time ? dayjs(time).format('YYYY-MM-DD HH:mm') : '-'
 }
 
+const formatFileSize = (size) => {
+  if (!size) return '-'
+  if (size < 1024) return size + ' B'
+  if (size < 1024 * 1024) return (size / 1024).toFixed(2) + ' KB'
+  if (size < 1024 * 1024 * 1024) return (size / (1024 * 1024)).toFixed(2) + ' MB'
+  return (size / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
+}
+
+const handleDownload = (row) => {
+  if (!row.filePath) {
+    ElMessage.warning('文件路径不存在')
+    return
+  }
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || ''
+  const downloadUrl = baseUrl + '/v1/oss/impl/apply/download?filePath=' + encodeURIComponent(row.filePath)
+  window.open(downloadUrl, '_blank')
+}
+
 const loadData = async () => {
   const taskId = route.params.id
   if (!taskId) return
@@ -606,6 +622,8 @@ const loadData = async () => {
       } catch (error) {
         console.error('Failed to load apply detail:', error)
       }
+      // 无论 detailByUuid 是否成功，都尝试加载介质和附件信息（使用 businessKey 作为回退）
+      loadMediaAndAttachments(taskData.value.businessKey)
     }
 
     // 获取审批路径
@@ -669,6 +687,69 @@ const loadEvalIndicators = async () => {
   }
 }
 
+const loadMediaAndAttachments = async (fallbackUuid) => {
+  // 优先使用 applyDetail 中的 implApplyNo
+  const implApplyNo = applyDetail.value?.implApplyNo
+  console.log('loadMediaAndAttachments called:', { implApplyNo, fallbackUuid })
+  let suplRes = null
+
+  if (implApplyNo) {
+    try {
+      console.log('Loading media/attachments by implApplyNo:', implApplyNo)
+      suplRes = await ossImplApplyApi.supplementary(implApplyNo)
+      console.log('supplementary by implApplyNo response:', suplRes)
+    } catch (error) {
+      console.error('Failed to load media/attachments by implApplyNo:', error)
+    }
+  }
+
+  // 如果 implApplyNo 不可用，尝试使用 fallbackUuid 直接获取补充数据
+  if ((!suplRes || suplRes.code !== 200) && fallbackUuid) {
+    try {
+      console.log('Loading media/attachments by fallbackUuid:', fallbackUuid)
+      suplRes = await ossImplApplyApi.supplementaryByUuid(fallbackUuid)
+      console.log('supplementaryByUuid response:', suplRes)
+    } catch (error) {
+      console.error('Failed to load media/attachments by uuid:', error)
+    }
+  }
+
+  if (suplRes && suplRes.code === 200 && suplRes.data) {
+    const supl = suplRes.data
+    console.log('supplementary data:', { mediaPreWhsUrl: supl.mediaPreWhsUrl, evalAtchListJson: supl.evalAtchListJson })
+    // 解析介质信息
+    if (supl.mediaPreWhsUrl && supl.mediaPreWhsUrl !== 'null') {
+      try {
+        const parsedMedia = JSON.parse(supl.mediaPreWhsUrl)
+        if (parsedMedia && Array.isArray(parsedMedia)) {
+          mediaList.value = parsedMedia
+          console.log('mediaList populated:', parsedMedia.length, 'items')
+        }
+      } catch (e) {
+        console.error('Failed to parse mediaPreWhsUrl:', e)
+      }
+    } else {
+      console.log('mediaPreWhsUrl is empty or null, not populating mediaList')
+    }
+    // 解析附件列表
+    if (supl.evalAtchListJson && supl.evalAtchListJson !== 'null') {
+      try {
+        const parsedAttachments = JSON.parse(supl.evalAtchListJson)
+        if (parsedAttachments && Array.isArray(parsedAttachments)) {
+          attachmentList.value = parsedAttachments
+          console.log('attachmentList populated:', parsedAttachments.length, 'items')
+        }
+      } catch (e) {
+        console.error('Failed to parse evalAtchListJson:', e)
+      }
+    } else {
+      console.log('evalAtchListJson is empty or null, not populating attachmentList')
+    }
+  } else {
+    console.log('supplementary call failed or returned no data', { suplRes })
+  }
+}
+
 // 加载审批补充信息（从申请详情中获取）
 const loadApprovalSuplData = () => {
   if (!applyDetail.value) return
@@ -693,6 +774,11 @@ const handleBack = () => {
 }
 
 const handleApprove = async () => {
+  // 非START节点需要填写审批意见
+  if (!isStartNode.value && !opinion.value.trim()) {
+    ElMessage.warning('请输入审批意见')
+    return
+  }
   // 如果是管理员审批节点，需要先保存补充信息
   if (isAdminApprovalNode.value) {
     // 验证必填字段
@@ -752,9 +838,16 @@ const handleApprove = async () => {
     }
   }
   try {
-    await wfApi.approve(route.params.id, { opinion: opinion.value })
+    await wfApi.approve(route.params.id, { comment: opinion.value })
     ElMessage.success('审批通过')
-    router.push('/wf/todo')
+    // 关闭当前Tab，跳转到左边Tab
+    const currentPath = route.path
+    const newPath = tabsStore.removeTab(currentPath)
+    if (newPath) {
+      router.push(newPath)
+    } else {
+      router.push('/wf/todo')
+    }
   } catch (error) {
     ElMessage.error('操作失败')
   }
@@ -768,12 +861,45 @@ const handleResubmit = async () => {
       await ossImplApplyApi.update(applyForm.id, applyForm)
     }
     // 然后提交审批（这会触发START节点的流转到下一个审批节点）
-    await wfApi.approve(route.params.id, { opinion: opinion.value })
+    await wfApi.approve(route.params.id, { comment: opinion.value })
     ElMessage.success('重新提交成功')
-    router.push('/wf/todo')
+    // 关闭当前Tab，跳转到左边Tab
+    const currentPath = route.path
+    const newPath = tabsStore.removeTab(currentPath)
+    if (newPath) {
+      router.push(newPath)
+    } else {
+      router.push('/wf/todo')
+    }
   } catch (error) {
     console.error('Failed to resubmit:', error)
     ElMessage.error('重新提交失败')
+  }
+}
+
+// 撤回流程
+const handleWithdraw = async () => {
+  try {
+    await ElMessageBox.confirm('确定要撤回此申请吗？撤回后流程将结束。', '确认撤回', {
+      confirmButtonText: '确定撤回',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    await wfApi.withdrawInstance(taskData.value.instanceId)
+    ElMessage.success('撤回成功')
+    // 关闭当前Tab，跳转到左边Tab
+    const currentPath = route.path
+    const newPath = tabsStore.removeTab(currentPath)
+    if (newPath) {
+      router.push(newPath)
+    } else {
+      router.push('/wf/todo')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('Failed to withdraw:', error)
+      ElMessage.error('撤回失败')
+    }
   }
 }
 
@@ -811,12 +937,19 @@ const submitReject = async () => {
   }
   try {
     await wfApi.returnTask(route.params.id, {
-      opinion: rejectOpinion.value,
+      comment: rejectOpinion.value,
       targetNodeId: selectedRejectNode.value
     })
     ElMessage.success('驳回成功')
     rejectDialogVisible.value = false
-    router.push('/wf/todo')
+    // 关闭当前Tab，跳转到左边Tab
+    const currentPath = route.path
+    const newPath = tabsStore.removeTab(currentPath)
+    if (newPath) {
+      router.push(newPath)
+    } else {
+      router.push('/wf/todo')
+    }
   } catch (error) {
     ElMessage.error('驳回失败')
   }
@@ -828,6 +961,10 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.review-label {
+  width: 100px;
+}
+
 .wf-task-detail {
   padding: 20px;
 }

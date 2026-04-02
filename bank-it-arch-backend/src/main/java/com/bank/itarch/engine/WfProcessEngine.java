@@ -160,7 +160,6 @@ public class WfProcessEngine {
     /**
      * 审批任务
      */
-    @Transactional
     public void completeTask(Long taskId, WfApprovalDTO approvalDTO, String operatorId, String operatorName) {
         log.info("审批任务: taskId={}, action={}, operator={}", taskId, approvalDTO.getAction(), operatorName);
 
@@ -203,6 +202,7 @@ public class WfProcessEngine {
         log.info("任务审批完成: taskId={}, action={}", taskId, action);
     }
 
+    @Transactional
     private void handleApprove(WfTask task, WfApprovalDTO approvalDTO, WfEngineContext context,
                                 String operatorId, String operatorName) {
         // 更新任务状态
@@ -272,27 +272,40 @@ public class WfProcessEngine {
         // 只有 OSS_IMPL_APPLY 类型且流程实例状态为 COMPLETED 时才同步
         // 重新从数据库查询实例状态，因为 continueFlow 可能会修改实例状态
         WfInstance completedInstance = instanceMapper.selectById(task.getInstanceId());
-        log.info("流程审批完成，检查同步: instanceId={}, status={}, businessType={}",
-                completedInstance.getId(), completedInstance.getStatus(), completedInstance.getBusinessType());
-        if ("OSS_IMPL_APPLY".equals(completedInstance.getBusinessType())
-            && "COMPLETED".equals(completedInstance.getStatus())) {
-            try {
+        log.info("流程审批完成，检查同步: instanceId={}, status={}, businessType={}, businessKey={}",
+                completedInstance.getId(), completedInstance.getStatus(), completedInstance.getBusinessType(), completedInstance.getBusinessKey());
+
+        if ("OSS_IMPL_APPLY".equals(completedInstance.getBusinessType())) {
+            if (!"COMPLETED".equals(completedInstance.getStatus())) {
+                log.warn("流程状态不是COMPLETED，无法同步: instanceId={}, status={}", completedInstance.getId(), completedInstance.getStatus());
+            } else {
                 String businessKey = completedInstance.getBusinessKey();
+                log.info("准备同步: businessKey={}", businessKey);
                 if (businessKey != null && !businessKey.isEmpty()) {
-                    // 根据UUID获取申请信息，然后调用同步方法
-                    var applyDTO = ossImplApplyService.getById(businessKey);
-                    if (applyDTO != null && applyDTO.getImplApplyNo() != null) {
-                        log.info("流程完成，同步引入申请数据到软件表: implApplyNo={}", applyDTO.getImplApplyNo());
-                        ossImplApplyService.syncToSoftware(applyDTO.getImplApplyNo());
+                    try {
+                        // 根据UUID获取申请信息，然后调用同步方法
+                        var applyDTO = ossImplApplyService.getById(businessKey);
+                        log.info("getById结果: applyDTO={}, implApplyNo={}", applyDTO, applyDTO != null ? applyDTO.getImplApplyNo() : "null");
+                        if (applyDTO != null && applyDTO.getImplApplyNo() != null) {
+                            log.info("流程完成，同步引入申请数据到软件表: implApplyNo={}", applyDTO.getImplApplyNo());
+                            ossImplApplyService.syncToSoftware(applyDTO.getImplApplyNo());
+                            log.info("同步完成");
+                        } else {
+                            log.warn("申请信息为空或implApplyNo为空: applyDTO={}, implApplyNo={}",
+                                applyDTO, applyDTO != null ? applyDTO.getImplApplyNo() : "null");
+                        }
+                    } catch (Exception e) {
+                        log.error("同步引入申请数据失败", e);
+                        // 不影响流程完成，只记录错误
                     }
+                } else {
+                    log.warn("businessKey为空，无法同步");
                 }
-            } catch (Exception e) {
-                log.error("同步引入申请数据失败", e);
-                // 不影响流程完成，只记录错误
             }
         }
     }
 
+    @Transactional
     private void handleReject(WfTask task, WfApprovalDTO approvalDTO, WfEngineContext context,
                                String operatorId, String operatorName) {
         // 更新任务状态
@@ -375,6 +388,7 @@ public class WfProcessEngine {
     /**
      * 驳回到START节点（发起人），不自动流转
      */
+    @Transactional
     private void handleRejectToStart(WfEngineContext context, WfTask task, WfDefinitionNode startNode) {
         WfInstance instance = context.getInstance();
 
@@ -414,6 +428,7 @@ public class WfProcessEngine {
         // 注意：不创建 ACTIVE 历史记录，START 的 pending 任务会在审批路径中单独显示
     }
 
+    @Transactional
     private void handleTransfer(WfTask task, WfApprovalDTO approvalDTO, WfEngineContext context,
                                  String operatorId, String operatorName) {
         // 转办：将任务转给其他人
@@ -442,6 +457,7 @@ public class WfProcessEngine {
                 "转办至: " + approvalDTO.getAssigneeName(), task.getId());
     }
 
+    @Transactional
     private void handleDelegate(WfTask task, WfApprovalDTO approvalDTO, WfEngineContext context,
                                   String operatorId, String operatorName) {
         // 加签：知会其他人，不影响原流程
@@ -463,6 +479,7 @@ public class WfProcessEngine {
                 "加签知会: " + approvalDTO.getDelegateUserName(), task.getId());
     }
 
+    @Transactional
     private void handleClaim(WfTask task, WfEngineContext context, String operatorId, String operatorName) {
         // 签收任务（抢任务）
         task.setAssigneeId(Long.parseLong(operatorId));
@@ -477,10 +494,16 @@ public class WfProcessEngine {
     private void continueFlow(WfEngineContext context, WfToken token, WfDefinitionNode node) {
         // 根据节点类型继续流转
         String nodeCategory = node.getNodeCategory();
+        log.info("continueFlow: nodeCategory={}, nodeCode={}, nodeId={}", nodeCategory, node.getNodeCode(), node.getId());
         WfNodeHandler handler = getNodeHandler(nodeCategory);
+        log.info("continueFlow: handler={}", handler);
 
         if (handler != null) {
+            log.info("continueFlow: 调用 handler.complete()");
             handler.complete(context, token);
+            log.info("continueFlow: handler.complete() 执行完成");
+        } else {
+            log.error("continueFlow: 未找到处理器, nodeCategory={}", nodeCategory);
         }
     }
 

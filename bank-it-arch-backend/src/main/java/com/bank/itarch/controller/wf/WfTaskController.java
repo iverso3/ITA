@@ -3,12 +3,14 @@ package com.bank.itarch.controller.wf;
 import com.bank.itarch.common.PageResult;
 import com.bank.itarch.common.Result;
 import com.bank.itarch.engine.WfProcessEngine;
+import com.bank.itarch.mapper.OssImplApplyInfoMapper;
 import com.bank.itarch.mapper.WfDefinitionNodeMapper;
 import com.bank.itarch.mapper.WfHistoryMapper;
 import com.bank.itarch.mapper.WfInstanceMapper;
 import com.bank.itarch.mapper.WfTaskMapper;
 import com.bank.itarch.model.entity.WfDefinitionNode;
 import com.bank.itarch.model.entity.WfHistory;
+import com.bank.itarch.model.entity.OssImplApplyInfo;
 import com.bank.itarch.model.dto.WfApprovalDTO;
 import com.bank.itarch.model.dto.WfTaskDTO;
 import com.bank.itarch.model.entity.WfInstance;
@@ -20,6 +22,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,6 +31,7 @@ import java.util.Map;
 /**
  * 工作流任务控制器
  */
+@Slf4j
 @RestController
 @RequestMapping("/v1/wf/tasks")
 @RequiredArgsConstructor
@@ -39,6 +43,7 @@ public class WfTaskController {
     private final WfInstanceMapper instanceMapper;
     private final WfDefinitionNodeMapper nodeMapper;
     private final WfHistoryMapper historyMapper;
+    private final OssImplApplyInfoMapper applyInfoMapper;
 
     @GetMapping("/todo")
     @Operation(summary = "待办任务列表")
@@ -73,6 +78,30 @@ public class WfTaskController {
                 dto.setBusinessType(instance.getBusinessType());
                 dto.setBusinessKey(instance.getBusinessKey());
                 dto.setBusinessId(instance.getBusinessId());
+
+                // 查询当前节点名称
+                if (task.getNodeId() != null) {
+                    WfDefinitionNode node = nodeMapper.selectById(task.getNodeId());
+                    if (node != null) {
+                        dto.setNodeName(node.getNodeName());
+                    }
+                }
+
+                // 对于引入申请类型，格式化任务名称为：软件名称_软件版本_申请类型
+                if ("OSS_IMPL_APPLY".equals(instance.getBusinessType()) && instance.getBusinessKey() != null) {
+                    OssImplApplyInfo applyInfo = applyInfoMapper.selectOne(
+                        new LambdaQueryWrapper<OssImplApplyInfo>()
+                            .eq(OssImplApplyInfo::getId, instance.getBusinessKey())
+                    );
+                    if (applyInfo != null) {
+                        String applyTypeText = "0".equals(applyInfo.getImplApplyType()) ? "首次引入" : "新版本引入";
+                        String formattedTaskName = String.format("%s_%s_%s",
+                            applyInfo.getSwName() != null ? applyInfo.getSwName() : "",
+                            applyInfo.getSwVersion() != null ? applyInfo.getSwVersion() : "",
+                            applyTypeText);
+                        dto.setTaskName(formattedTaskName);
+                    }
+                }
             }
             return dto;
         }).toList();
@@ -111,6 +140,30 @@ public class WfTaskController {
                 dto.setBusinessType(instance.getBusinessType());
                 dto.setBusinessKey(instance.getBusinessKey());
                 dto.setBusinessId(instance.getBusinessId());
+
+                // 查询当前节点名称
+                if (task.getNodeId() != null) {
+                    WfDefinitionNode node = nodeMapper.selectById(task.getNodeId());
+                    if (node != null) {
+                        dto.setNodeName(node.getNodeName());
+                    }
+                }
+
+                // 对于引入申请类型，格式化任务名称为：软件名称_软件版本_申请类型
+                if ("OSS_IMPL_APPLY".equals(instance.getBusinessType()) && instance.getBusinessKey() != null) {
+                    OssImplApplyInfo applyInfo = applyInfoMapper.selectOne(
+                        new LambdaQueryWrapper<OssImplApplyInfo>()
+                            .eq(OssImplApplyInfo::getId, instance.getBusinessKey())
+                    );
+                    if (applyInfo != null) {
+                        String applyTypeText = "0".equals(applyInfo.getImplApplyType()) ? "首次引入" : "新版本引入";
+                        String formattedTaskName = String.format("%s_%s_%s",
+                            applyInfo.getSwName() != null ? applyInfo.getSwName() : "",
+                            applyInfo.getSwVersion() != null ? applyInfo.getSwVersion() : "",
+                            applyTypeText);
+                        dto.setTaskName(formattedTaskName);
+                    }
+                }
             }
             return dto;
         }).toList();
@@ -147,8 +200,13 @@ public class WfTaskController {
             return Result.error(401, "未登录");
         }
         dto.setAction("APPROVE");
-        processEngine.completeTask(id, dto, String.valueOf(currentUser.getUserId()), currentUser.getUsername());
-        return Result.success("审批通过", null);
+        try {
+            processEngine.completeTask(id, dto, String.valueOf(currentUser.getUserId()), currentUser.getRealName() != null ? currentUser.getRealName() : currentUser.getUsername());
+            return Result.success("审批通过", null);
+        } catch (Exception e) {
+            log.error("审批异常: taskId={}", id, e);
+            return Result.error("审批失败: " + e.getMessage());
+        }
     }
 
     @PostMapping("/{id}/reject")
@@ -159,8 +217,13 @@ public class WfTaskController {
             return Result.error(401, "未登录");
         }
         dto.setAction("REJECT");
-        processEngine.completeTask(id, dto, String.valueOf(currentUser.getUserId()), currentUser.getUsername());
-        return Result.success("审批拒绝", null);
+        try {
+            processEngine.completeTask(id, dto, String.valueOf(currentUser.getUserId()), currentUser.getRealName() != null ? currentUser.getRealName() : currentUser.getUsername());
+            return Result.success("审批拒绝", null);
+        } catch (Exception e) {
+            log.error("审批拒绝异常: taskId={}", id, e);
+            return Result.error("审批失败: " + e.getMessage());
+        }
     }
 
     @PostMapping("/{id}/return")
@@ -171,8 +234,13 @@ public class WfTaskController {
             return Result.error(401, "未登录");
         }
         dto.setAction("REJECT");
-        processEngine.completeTask(id, dto, String.valueOf(currentUser.getUserId()), currentUser.getUsername());
-        return Result.success("驳回成功", null);
+        try {
+            processEngine.completeTask(id, dto, String.valueOf(currentUser.getUserId()), currentUser.getRealName() != null ? currentUser.getRealName() : currentUser.getUsername());
+            return Result.success("驳回成功", null);
+        } catch (Exception e) {
+            log.error("驳回异常: taskId={}", id, e);
+            return Result.error("驳回失败: " + e.getMessage());
+        }
     }
 
     @PostMapping("/{id}/transfer")
@@ -183,8 +251,13 @@ public class WfTaskController {
             return Result.error(401, "未登录");
         }
         dto.setAction("TRANSFER");
-        processEngine.completeTask(id, dto, String.valueOf(currentUser.getUserId()), currentUser.getUsername());
-        return Result.success("转办成功", null);
+        try {
+            processEngine.completeTask(id, dto, String.valueOf(currentUser.getUserId()), currentUser.getRealName() != null ? currentUser.getRealName() : currentUser.getUsername());
+            return Result.success("转办成功", null);
+        } catch (Exception e) {
+            log.error("转办异常: taskId={}", id, e);
+            return Result.error("转办失败: " + e.getMessage());
+        }
     }
 
     @PostMapping("/{id}/delegate")
@@ -195,8 +268,13 @@ public class WfTaskController {
             return Result.error(401, "未登录");
         }
         dto.setAction("DELEGATE");
-        processEngine.completeTask(id, dto, String.valueOf(currentUser.getUserId()), currentUser.getUsername());
-        return Result.success("加签成功", null);
+        try {
+            processEngine.completeTask(id, dto, String.valueOf(currentUser.getUserId()), currentUser.getRealName() != null ? currentUser.getRealName() : currentUser.getUsername());
+            return Result.success("加签成功", null);
+        } catch (Exception e) {
+            log.error("加签异常: taskId={}", id, e);
+            return Result.error("加签失败: " + e.getMessage());
+        }
     }
 
     @PostMapping("/{id}/claim")
@@ -207,8 +285,13 @@ public class WfTaskController {
             return Result.error(401, "未登录");
         }
         dto.setAction("CLAIM");
-        processEngine.completeTask(id, dto, String.valueOf(currentUser.getUserId()), currentUser.getUsername());
-        return Result.success("签收成功", null);
+        try {
+            processEngine.completeTask(id, dto, String.valueOf(currentUser.getUserId()), currentUser.getRealName() != null ? currentUser.getRealName() : currentUser.getUsername());
+            return Result.success("签收成功", null);
+        } catch (Exception e) {
+            log.error("签收异常: taskId={}", id, e);
+            return Result.error("签收失败: " + e.getMessage());
+        }
     }
 
     @GetMapping("/{id}/detail")

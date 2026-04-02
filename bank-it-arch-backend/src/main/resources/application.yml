@@ -38,6 +38,11 @@ jwt:
   secret: bank-it-arch-secret-key-2026-very-long-and-secure
   expiration: 86400000
 
+file:
+  upload:
+    # 文件上传路径
+    path: D:/ITA/uploads
+
 logging:
   level:
     com.bank.itarch: DEBUG

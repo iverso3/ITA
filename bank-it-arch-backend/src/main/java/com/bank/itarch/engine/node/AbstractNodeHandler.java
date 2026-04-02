@@ -21,7 +21,7 @@ public abstract class AbstractNodeHandler implements WfNodeHandler {
 
     @Override
     public void complete(WfEngineContext context, WfToken token) {
-        log.debug("节点任务完成: {}", token.getCurrentNodeCode());
+        log.info("AbstractNodeHandler.complete: nodeCode={}, currentNodeId={}", token.getCurrentNodeCode(), token.getCurrentNodeId());
         leave(context, token);
     }
 

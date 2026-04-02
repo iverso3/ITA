@@ -123,12 +123,6 @@
                 <el-descriptions-item label="软件版本">{{ applyDetail.swVersion }}</el-descriptions-item>
                 <el-descriptions-item label="软件分类">{{ getCategoryText(applyDetail.swCategory) }}</el-descriptions-item>
                 <el-descriptions-item label="许可协议">{{ applyDetail.licAbbr }}</el-descriptions-item>
-                <el-descriptions-item label="是否安全工具">{{ applyDetail.secInstrt === '1' ? '是' : '否' }}</el-descriptions-item>
-                <el-descriptions-item label="操作系统">{{ getOsTypeText(applyDetail.osType) }}</el-descriptions-item>
-                <el-descriptions-item label="应用编号">{{ applyDetail.useAppNo || '-' }}</el-descriptions-item>
-                <el-descriptions-item label="投产版本">{{ applyDetail.launchVersion || '-' }}</el-descriptions-item>
-                <el-descriptions-item label="任务编号及名称" :span="2">{{ applyDetail.launchTaskInfo || '-' }}</el-descriptions-item>
-                <el-descriptions-item label="申请说明" :span="2">{{ applyDetail.implCmnt || '-' }}</el-descriptions-item>
               </el-descriptions>
             </el-tab-pane>
             <el-tab-pane label="评审信息" name="review">
@@ -137,6 +131,20 @@
                 <el-descriptions-item label="系统环境">{{ applyDetail.systemEnv || '-' }}</el-descriptions-item>
                 <el-descriptions-item label="功能介绍">{{ applyDetail.functionIntro || '-' }}</el-descriptions-item>
                 <el-descriptions-item label="评审结论">{{ applyDetail.evalConclusion || '-' }}</el-descriptions-item>
+              </el-descriptions>
+            </el-tab-pane>
+            <el-tab-pane label="补充信息" name="supplementary">
+              <el-descriptions :column="2" border size="small">
+                <el-descriptions-item label="适用场景">{{ getApplicableSceneText(applyDetail.applicableScene) }}</el-descriptions-item>
+                <el-descriptions-item label="适用职能范围">{{ getFuncRangeText(applyDetail.applicableFunctionRange) }}</el-descriptions-item>
+                <el-descriptions-item label="主推荐版本">{{ applyDetail.isMainUse === '1' ? '是' : '否' }}</el-descriptions-item>
+                <el-descriptions-item label="版本类型">{{ getVerTypeText(applyDetail.verType) }}</el-descriptions-item>
+                <el-descriptions-item label="引入团队">{{ applyDetail.implTeamName || '-' }}</el-descriptions-item>
+                <el-descriptions-item label="责任团队">{{ applyDetail.rspTeamName || '-' }}</el-descriptions-item>
+                <el-descriptions-item label="责任人">{{ applyDetail.rspUserName || '-' }}</el-descriptions-item>
+                <el-descriptions-item label="软件类型">{{ getSwTypeText(applyDetail.swType) }}</el-descriptions-item>
+                <el-descriptions-item label="产品类型">{{ getProductTypeText(applyDetail.productType) }}</el-descriptions-item>
+                <el-descriptions-item label="应用场景" :span="2">{{ applyDetail.applicationScene || '-' }}</el-descriptions-item>
               </el-descriptions>
             </el-tab-pane>
             <el-tab-pane label="评测指标" name="eval">
@@ -178,6 +186,32 @@
                 </el-table>
                 <div class="total-score">质量指标总分：{{ qualityTotalScore }} / 100</div>
               </div>
+            </el-tab-pane>
+            <el-tab-pane label="介质信息" name="media">
+              <div v-if="!mediaList || mediaList.length === 0" style="text-align: center; padding: 40px; color: #909399;">暂无介质信息</div>
+              <el-table v-else :data="mediaList" border size="small">
+                <el-table-column prop="fileName" label="文件名" min-width="200" show-overflow-tooltip />
+                <el-table-column prop="mediaType" label="介质类型" width="120" align="center">
+                  <template #default="{ row }">{{ row.mediaType === 'linux' ? 'Linux' : row.mediaType === 'windows' ? 'Windows' : '-' }}</template>
+                </el-table-column>
+                <el-table-column prop="fileSize" label="文件大小" width="100" align="center">
+                  <template #default="{ row }">{{ formatFileSize(row.fileSize) }}</template>
+                </el-table-column>
+              </el-table>
+            </el-tab-pane>
+            <el-tab-pane label="附件信息" name="attachments">
+              <div v-if="!attachmentList || attachmentList.length === 0" style="text-align: center; padding: 40px; color: #909399;">暂无附件信息</div>
+              <el-table v-else :data="attachmentList" border size="small">
+                <el-table-column prop="fileName" label="文件名" min-width="200" show-overflow-tooltip />
+                <el-table-column prop="fileSize" label="文件大小" width="100" align="center">
+                  <template #default="{ row }">{{ formatFileSize(row.fileSize) }}</template>
+                </el-table-column>
+                <el-table-column label="操作" width="80" align="center">
+                  <template #default="{ row }">
+                    <el-button type="primary" text size="small" @click="handleDownload(row)">下载</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
             </el-tab-pane>
             <el-tab-pane label="审批路径" name="trace">
               <div v-if="traceLoading" style="text-align: center; padding: 40px;">加载中...</div>
@@ -234,6 +268,8 @@ const viewInstance = ref(null)
 const applyDetail = ref(null)
 const traceData = ref(null)
 const traceLoading = ref(false)
+const mediaList = ref([])
+const attachmentList = ref([])
 
 // 准入指标
 const entryIndicators = ref([
@@ -280,6 +316,14 @@ const formatTime = (time) => {
   return time ? dayjs(time).format('YYYY-MM-DD HH:mm') : '-'
 }
 
+const formatFileSize = (size) => {
+  if (!size) return '-'
+  if (size < 1024) return size + ' B'
+  if (size < 1024 * 1024) return (size / 1024).toFixed(2) + ' KB'
+  if (size < 1024 * 1024 * 1024) return (size / (1024 * 1024)).toFixed(2) + ' MB'
+  return (size / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
+}
+
 const getBusinessTypeText = (type) => {
   const map = { 'OSS_IMPL_APPLY': '开源软件引入', 'ARCH_APPLICATION': '应用架构', 'TECH_STACK': '技术栈', 'DATA_ARCH': '数据架构' }
   return map[type] || type
@@ -308,6 +352,31 @@ const getCategoryText = (category) => {
 const getOsTypeText = (osType) => {
   const map = { '0': 'Linux', '1': 'Windows', '2': 'AIX', '3': '其他' }
   return map[osType] || osType
+}
+
+const getApplicableSceneText = (val) => {
+  const map = { 'PROD': '生产环境', 'TEST': '测试环境', 'DEV': '开发环境', 'ALL': '全部' }
+  return map[val] || val || '-'
+}
+
+const getFuncRangeText = (val) => {
+  const map = { 'DEV_OP': '运维开发', 'TEST_QE': '测试/质量', 'PROGRAM_DEV': '程序开发', 'DATA_ANALYST': '数据分析', 'ALL': '全部' }
+  return map[val] || val || '-'
+}
+
+const getVerTypeText = (val) => {
+  const map = { 'MAJOR': '重大版本', 'MINOR': '次要版本', 'PATCH': '补丁版本' }
+  return map[val] || val || '-'
+}
+
+const getSwTypeText = (val) => {
+  const map = { 'MAIN': '主推荐版本', 'OPTIONAL': '可选版本', 'OLD': '历史版本' }
+  return map[val] || val || '-'
+}
+
+const getProductTypeText = (val) => {
+  const map = { 'SERVER_SOFTWARE': '服务器软件', 'CLIENT_SOFTWARE': '客户端软件', 'LIB': '开发库', 'TOOL': '工具软件', 'OTHER': '其他' }
+  return map[val] || val || '-'
 }
 
 const loadData = async () => {
@@ -354,6 +423,8 @@ const handleView = async (row) => {
   viewDialogVisible.value = true
   applyDetail.value = null
   traceData.value = null
+  mediaList.value = []
+  attachmentList.value = []
 
   // 如果是引入申请，获取申请详情
   if (row.businessType === 'OSS_IMPL_APPLY' && row.businessKey) {
@@ -362,6 +433,7 @@ const handleView = async (row) => {
       if (res.code === 200) {
         applyDetail.value = res.data
         loadEvalIndicators()
+        loadMediaAndAttachments()
       }
     } catch (error) {
       console.error('Failed to load apply detail:', error)
@@ -381,6 +453,40 @@ const handleView = async (row) => {
     } finally {
       traceLoading.value = false
     }
+  }
+}
+
+const loadMediaAndAttachments = async () => {
+  if (!applyDetail.value?.implApplyNo) return
+  try {
+    const suplRes = await ossImplApplyApi.supplementary(applyDetail.value.implApplyNo)
+    if (suplRes.code === 200 && suplRes.data) {
+      const supl = suplRes.data
+      // 解析介质信息
+      if (supl.mediaPreWhsUrl && supl.mediaPreWhsUrl !== 'null') {
+        try {
+          const parsedMedia = JSON.parse(supl.mediaPreWhsUrl)
+          if (parsedMedia && Array.isArray(parsedMedia)) {
+            mediaList.value = parsedMedia
+          }
+        } catch (e) {
+          console.error('Failed to parse mediaPreWhsUrl:', e)
+        }
+      }
+      // 解析附件列表
+      if (supl.evalAtchListJson && supl.evalAtchListJson !== 'null') {
+        try {
+          const parsedAttachments = JSON.parse(supl.evalAtchListJson)
+          if (parsedAttachments && Array.isArray(parsedAttachments)) {
+            attachmentList.value = parsedAttachments
+          }
+        } catch (e) {
+          console.error('Failed to parse evalAtchListJson:', e)
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load media and attachments:', error)
   }
 }
 
@@ -413,6 +519,17 @@ const loadEvalIndicators = async () => {
   } catch (error) {
     console.error('Failed to load eval indicators:', error)
   }
+}
+
+const handleDownload = (row) => {
+  if (!row.filePath) {
+    ElMessage.warning('文件路径不存在')
+    return
+  }
+  // 构建下载URL
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || ''
+  const downloadUrl = baseUrl + '/v1/oss/impl/apply/download?filePath=' + encodeURIComponent(row.filePath)
+  window.open(downloadUrl, '_blank')
 }
 
 const handleWithdraw = async (row) => {

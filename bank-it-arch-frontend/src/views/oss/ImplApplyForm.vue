@@ -83,13 +83,38 @@
         <div class="form-section">
           <h3 class="section-title">介质信息</h3>
           <div class="media-section">
-            <el-button type="primary" @click="handleSelectMedia" class="btn-select-media" v-if="!isView">
-              <el-icon><Plus /></el-icon> 选择介质信息
-            </el-button>
+            <el-upload
+              v-if="!isView"
+              ref="mediaUploadRef"
+              class="media-upload"
+              action="#"
+              :auto-upload="false"
+              :limit="10"
+              :on-change="handleMediaFileChange"
+              :on-remove="handleMediaFileRemove"
+              :file-list="mediaFileList"
+              accept=".zip,.tar,.tar.gz,.tgz,.rar"
+            >
+              <el-button type="primary" class="btn-select-media">
+                <el-icon><Plus /></el-icon> 选择介质文件
+              </el-button>
+            </el-upload>
             <el-table :data="mediaList" stripe class="media-table">
               <el-table-column prop="fileName" label="文件名" min-width="200" show-overflow-tooltip />
-              <el-table-column prop="fileSize" label="文件大小(kb)" width="120" align="center" />
-              <el-table-column prop="mediaType" label="介质类型" width="100" align="center" />
+              <el-table-column prop="fileSize" label="文件大小(kb)" width="120" align="center">
+                <template #default="{ row }">
+                  {{ row.fileSize ? (row.fileSize / 1024).toFixed(2) : '-' }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="mediaType" label="介质类型" width="120" align="center">
+                <template #default="{ row }">
+                  <span v-if="isView">{{ row.mediaType || '-' }}</span>
+                  <el-select v-else v-model="row.mediaType" placeholder="请选择" style="width: 100px">
+                    <el-option label="Linux" value="linux" />
+                    <el-option label="Windows" value="windows" />
+                  </el-select>
+                </template>
+              </el-table-column>
               <el-table-column label="操作" width="100" align="center" v-if="!isView">
                 <template #default="{ row }">
                   <el-button type="danger" link @click="handleRemoveMedia(row)">删除</el-button>
@@ -152,15 +177,32 @@
         <div class="form-section">
           <h3 class="section-title">附件</h3>
           <div class="attachment-section">
-            <el-button type="primary" @click="handleAddAttachment" class="btn-add-attachment" v-if="!isView">
-              <el-icon><Plus /></el-icon> 添加附件
-            </el-button>
+            <el-upload
+              v-if="!isView"
+              ref="attachmentUploadRef"
+              class="attachment-upload"
+              action="#"
+              :auto-upload="false"
+              :limit="5"
+              :on-change="handleAttachmentFileChange"
+              :on-remove="handleAttachmentFileRemove"
+              :file-list="attachmentFileList"
+              accept=".doc,.docx"
+            >
+              <el-button type="primary" class="btn-add-attachment">
+                <el-icon><Plus /></el-icon> 添加附件
+              </el-button>
+            </el-upload>
             <div class="attachment-tip" v-if="!isView">
               <span class="red">注：只支持上传评测证明材料（内容包含：开源许可证、漏洞扫描结果、CVSS评分分析、病毒扫描结果），文件格式：doc、docx，单个文件不超过50M。</span>
             </div>
             <el-table :data="attachmentList" stripe class="attachment-table">
               <el-table-column prop="fileName" label="文件名" min-width="200" show-overflow-tooltip />
-              <el-table-column prop="fileSize" label="文件大小(kb)" width="120" align="center" />
+              <el-table-column prop="fileSize" label="文件大小(kb)" width="120" align="center">
+                <template #default="{ row }">
+                  {{ row.fileSize ? (row.fileSize / 1024).toFixed(2) : '-' }}
+                </template>
+              </el-table-column>
               <el-table-column label="操作" width="100" align="center" v-if="!isView">
                 <template #default="{ row }">
                   <el-button type="danger" link @click="handleRemoveAttachment(row)">删除</el-button>
@@ -179,15 +221,6 @@
       </el-form>
     </div>
 
-    <!-- Media Selection Dialog -->
-    <el-dialog v-model="mediaDialogVisible" title="选择介质信息" width="600px">
-      <div class="media-dialog-content">
-        <p>介质选择功能开发中...</p>
-      </div>
-      <template #footer>
-        <el-button @click="mediaDialogVisible = false">关闭</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -197,15 +230,18 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ossImplApplyApi, wfApi } from '@/api'
 import { useAuthStore } from '@/store/auth'
+import { useTabsStore } from '@/store/tabs'
 import EvalIndicatorsBase from '@/components/oss/EvalIndicatorsBase.vue'
 import EvalIndicatorsTool from '@/components/oss/EvalIndicatorsTool.vue'
 import EvalIndicatorsCmpnt from '@/components/oss/EvalIndicatorsCmpnt.vue'
 
 const route = useRoute()
 const router = useRouter()
+const tabsStore = useTabsStore()
 
 const formRef = ref(null)
 const evalRef = ref(null)
+const mediaUploadRef = ref(null)
 
 const isView = computed(() => route.query.mode === 'view')
 const isEdit = computed(() => route.query.mode === 'edit')
@@ -306,9 +342,10 @@ const formData = reactive({
 })
 
 const mediaList = ref([])
+const mediaFileList = ref([])
 const attachmentList = ref([])
+const attachmentFileList = ref([])
 const softwareList = ref([])
-const mediaDialogVisible = ref(false)
 const submitLoading = ref(false)
 const evalData = ref(null) // 评测指标数据
 
@@ -395,22 +432,93 @@ const handleCategoryChange = () => {
   }
 }
 
-const handleSelectMedia = () => {
-  mediaDialogVisible.value = true
+const handleMediaFileChange = (file, fileList) => {
+  // 将上传的文件添加到mediaList，mediaType默认为空
+  const existFile = mediaList.value.find(f => f.uid === file.uid)
+  if (!existFile) {
+    mediaList.value.push({
+      uid: file.uid,
+      fileName: file.name,
+      fileSize: file.size,
+      mediaType: '',
+      file: file.raw
+    })
+  }
+  mediaFileList.value = fileList
+}
+
+const handleMediaFileRemove = (file, fileList) => {
+  const idx = mediaList.value.findIndex(f => f.uid === file.uid)
+  if (idx > -1) {
+    mediaList.value.splice(idx, 1)
+  }
+  mediaFileList.value = fileList
 }
 
 const handleRemoveMedia = (row) => {
+  // 从mediaFileList中移除对应的文件
+  const fileIdx = mediaFileList.value.findIndex(f => f.uid === row.uid)
+  if (fileIdx > -1) {
+    mediaFileList.value.splice(fileIdx, 1)
+  }
+  // 从mediaList中移除
   const idx = mediaList.value.indexOf(row)
   if (idx > -1) {
     mediaList.value.splice(idx, 1)
   }
 }
 
-const handleAddAttachment = () => {
-  ElMessage.info('附件上传功能开发中...')
+const attachmentUploadRef = ref(null)
+
+const handleAttachmentFileChange = (file, fileList) => {
+  // 检查文件大小（50M）
+  if (file.size > 50 * 1024 * 1024) {
+    ElMessage.warning('文件大小不能超过50M')
+    const idx = fileList.findIndex(f => f.uid === file.uid)
+    if (idx > -1) {
+      fileList.splice(idx, 1)
+    }
+    return
+  }
+  // 检查文件类型
+  const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase()
+  if (!['.doc', '.docx'].includes(ext)) {
+    ElMessage.warning('只支持上传doc、docx格式的文件')
+    const idx = fileList.findIndex(f => f.uid === file.uid)
+    if (idx > -1) {
+      fileList.splice(idx, 1)
+    }
+    return
+  }
+  // 添加到attachmentList
+  const existFile = attachmentList.value.find(f => f.uid === file.uid)
+  if (!existFile) {
+    attachmentList.value.push({
+      uid: file.uid,
+      fileName: file.name,
+      fileSize: file.size,
+      filePath: '',
+      file: file.raw
+    })
+  }
+  attachmentFileList.value = fileList
+}
+
+const handleAttachmentFileRemove = (file, fileList) => {
+  const idx = attachmentList.value.findIndex(f => f.uid === file.uid)
+  if (idx > -1) {
+    attachmentList.value.splice(idx, 1)
+  }
+  attachmentFileList.value = fileList
 }
 
 const handleRemoveAttachment = (row) => {
+  // 从attachmentFileList中移除对应的文件
+  const fileIdx = attachmentFileList.value.findIndex(f => f.uid === row.uid)
+  if (fileIdx > -1) {
+    attachmentFileList.value.splice(fileIdx, 1)
+  }
+  // 从attachmentList中移除
   const idx = attachmentList.value.indexOf(row)
   if (idx > -1) {
     attachmentList.value.splice(idx, 1)
@@ -437,11 +545,144 @@ const handleSave = async () => {
         formData.id = res.data.id
         formData.implApplyNo = res.data.implApplyNo
       }
-      // 保存评测数据到拓展表
-      await saveEvalData()
+      // 确保 implApplyNo 已设置后再保存附件、介质和评测数据
+      const applyNo = formData.implApplyNo || res.data.implApplyNo
+      if (applyNo) {
+        // 保存附件
+        await saveAttachments()
+        // 保存介质文档
+        await saveMedia()
+        // 保存评测数据到拓展表
+        await saveEvalData()
+      } else {
+        console.error('implApplyNo is still empty after save, cannot save attachments/media/eval')
+      }
     }
   } catch (error) {
     console.error('Failed to save:', error)
+  }
+}
+
+const saveAttachments = async () => {
+  console.log('saveAttachments called: implApplyNo=', formData.implApplyNo, 'attachmentList=', JSON.stringify(attachmentList.value))
+  if (!formData.implApplyNo) {
+    console.warn('saveAttachments: implApplyNo is empty')
+    return false
+  }
+  // 只处理新上传的文件（没有filePath的）
+  const newAttachments = attachmentList.value.filter(a => !a.filePath && a.file)
+  console.log('saveAttachments: newAttachments count:', newAttachments.length, 'items:', JSON.stringify(newAttachments))
+  if (newAttachments.length === 0) {
+    console.log('saveAttachments: no new attachments to upload, checking if existing attachments need update')
+    // 即使没有新上传的文件，也更新附件列表（确保supl表中的数据是最新的）
+    const attachmentData = attachmentList.value.map(a => ({
+      fileName: a.fileName,
+      filePath: a.filePath,
+      fileSize: a.fileSize
+    }))
+    console.log('saveAttachments: attachmentData to save:', JSON.stringify(attachmentData))
+    if (attachmentData.length > 0) {
+      const suplData = {
+        implApplyNo: formData.implApplyNo,
+        evalAtchListJson: JSON.stringify(attachmentData)
+      }
+      console.log('saveAttachments: updating existing attachments, suplData:', JSON.stringify(suplData))
+      const updateRes = await ossImplApplyApi.updateSupplementary(formData.implApplyNo, suplData)
+      console.log('saveAttachments: updateSupplementary result:', updateRes)
+    }
+    return true
+  }
+  try {
+    for (const attachment of newAttachments) {
+      const uploadRes = await ossImplApplyApi.uploadAttachment(attachment.file, formData.implApplyNo)
+      if (uploadRes.code === 200) {
+        attachment.filePath = uploadRes.data.filePath
+      } else {
+        console.error('Failed to upload attachment:', uploadRes.message)
+      }
+    }
+    // 更新supl表中的evalAtchListJson
+    const attachmentData = attachmentList.value.map(a => ({
+      fileName: a.fileName,
+      filePath: a.filePath,
+      fileSize: a.fileSize
+    }))
+    const suplData = {
+      implApplyNo: formData.implApplyNo,
+      evalAtchListJson: JSON.stringify(attachmentData)
+    }
+    await ossImplApplyApi.updateSupplementary(formData.implApplyNo, suplData)
+    return true
+  } catch (error) {
+    console.error('Failed to save attachments:', error)
+    return false
+  }
+}
+
+const saveMedia = async () => {
+  console.log('saveMedia called: implApplyNo=', formData.implApplyNo, 'mediaList=', JSON.stringify(mediaList.value))
+  if (!formData.implApplyNo) {
+    console.warn('saveMedia: implApplyNo is empty')
+    return false
+  }
+  // 只处理新上传的文件（没有filePath的）
+  const newMediaFiles = mediaList.value.filter(m => !m.filePath && m.file)
+  console.log('saveMedia: newMediaFiles count:', newMediaFiles.length, 'items:', JSON.stringify(newMediaFiles))
+  if (newMediaFiles.length === 0) {
+    console.log('saveMedia: no new media files to upload, checking if existing media need update')
+    // 即使没有新上传的文件，也更新介质列表（确保supl表中的数据是最新的）
+    const mediaData = mediaList.value.map(m => ({
+      fileName: m.fileName,
+      filePath: m.filePath,
+      fileSize: m.fileSize,
+      mediaType: m.mediaType
+    }))
+    console.log('saveMedia: mediaData to save:', JSON.stringify(mediaData))
+    if (mediaData.length > 0) {
+      const suplData = {
+        implApplyNo: formData.implApplyNo,
+        mediaPreWhsUrl: JSON.stringify(mediaData)
+      }
+      console.log('saveMedia: updating existing media, suplData:', JSON.stringify(suplData))
+      const updateRes = await ossImplApplyApi.updateSupplementary(formData.implApplyNo, suplData)
+      console.log('saveMedia: updateSupplementary result:', updateRes)
+    }
+    return true
+  }
+  try {
+    for (const media of newMediaFiles) {
+      if (!media.mediaType) {
+        console.warn('saveMedia: mediaType is empty for', media.fileName, '- skipping upload')
+        continue
+      }
+      console.log('saveMedia: uploading file:', media.fileName, 'mediaType:', media.mediaType)
+      const uploadRes = await ossImplApplyApi.uploadMedia(media.file, formData.implApplyNo, media.mediaType)
+      console.log('saveMedia: upload result:', uploadRes)
+      if (uploadRes.code === 200) {
+        media.filePath = uploadRes.data.filePath
+      } else {
+        console.error('Failed to upload media:', uploadRes.message)
+      }
+    }
+    // 更新supl表中的mediaPreWhsUrl
+    const mediaData = mediaList.value.map(m => ({
+      fileName: m.fileName,
+      filePath: m.filePath,
+      fileSize: m.fileSize,
+      mediaType: m.mediaType
+    }))
+    console.log('saveMedia: final mediaData:', JSON.stringify(mediaData))
+    const suplData = {
+      implApplyNo: formData.implApplyNo,
+      mediaPreWhsUrl: JSON.stringify(mediaData)
+    }
+    console.log('saveMedia: calling updateSupplementary with:', JSON.stringify(suplData))
+    const updateRes = await ossImplApplyApi.updateSupplementary(formData.implApplyNo, suplData)
+    console.log('saveMedia: updateSupplementary result:', updateRes)
+    return true
+  } catch (error) {
+    console.error('Failed to save media:', error)
+    return false
   }
 }
 
@@ -526,6 +767,10 @@ const handleSubmit = async () => {
 
   submitLoading.value = true
   try {
+    console.log('========== handleSubmit START ==========')
+    console.log('handleSubmit: formData.id=', formData.id, 'formData.implApplyNo=', formData.implApplyNo)
+    console.log('handleSubmit: mediaList=', JSON.stringify(mediaList.value))
+    console.log('handleSubmit: attachmentList=', JSON.stringify(attachmentList.value))
     await formRef.value.validate()
     // Set current user info
     const authStore = useAuthStore()
@@ -546,6 +791,12 @@ const handleSubmit = async () => {
       formData.id = res.data.id
       formData.implApplyNo = res.data.implApplyNo
     }
+    console.log('handleSubmit: calling saveAttachments...')
+    await saveAttachments()
+    console.log('handleSubmit: saveAttachments completed')
+    console.log('handleSubmit: calling saveMedia...')
+    await saveMedia()
+    console.log('handleSubmit: saveMedia completed')
     // 保存评测数据
     const saved = await saveEvalData()
     if (!saved) {
@@ -580,15 +831,27 @@ const handleSubmit = async () => {
       submitLoading.value = false
       return
     }
+    // Start the process with variables for condition evaluation
     const res = await ossImplApplyApi.startProcess({
       implApplyNo: formData.implApplyNo,
-      definitionId: implApplyDef.id
+      definitionId: implApplyDef.id,
+      variables: {
+        implApplyType: formData.implApplyType,  // 申请类型，用于条件节点判断
+        swCategory: formData.swCategory  // 软件类别
+      }
     })
     console.log('Start process response:', res)
     if (res.code === 200) {
       ElMessage.success('提交成功，审批流程已启动')
       formData.procInstId = res.data.id
-      router.push('/oss/impl-apply')
+      // 关闭当前Tab，跳转到左边Tab
+      const currentPath = route.path
+      const newPath = tabsStore.removeTab(currentPath)
+      if (newPath) {
+        router.push(newPath)
+      } else {
+        router.push('/oss/impl-apply')
+      }
     } else {
       ElMessage.error(res.message || '提交失败')
     }
@@ -601,7 +864,14 @@ const handleSubmit = async () => {
 }
 
 const handleBack = () => {
-  router.push('/oss/impl-apply')
+  // 关闭当前Tab，跳转到左边Tab
+  const currentPath = route.path
+  const newPath = tabsStore.removeTab(currentPath)
+  if (newPath) {
+    router.push(newPath)
+  } else {
+    router.push('/oss/impl-apply')
+  }
 }
 
 const loadData = async () => {
@@ -630,6 +900,45 @@ const loadData = async () => {
               }
             } catch (e) {
               console.error('Failed to parse evalResultListJson:', e)
+            }
+          }
+          // 解析附件列表
+          if (supl.evalAtchListJson && supl.evalAtchListJson !== 'null') {
+            try {
+              const parsedAttachments = JSON.parse(supl.evalAtchListJson)
+              if (parsedAttachments && Array.isArray(parsedAttachments)) {
+                attachmentList.value = parsedAttachments.map((a, idx) => ({
+                  uid: idx + 1,
+                  fileName: a.fileName,
+                  filePath: a.filePath,
+                  fileSize: a.fileSize
+                }))
+              }
+            } catch (e) {
+              console.error('Failed to parse evalAtchListJson:', e)
+            }
+          }
+          // 解析介质文档列表
+          if (supl.mediaPreWhsUrl && supl.mediaPreWhsUrl !== 'null') {
+            try {
+              const parsedMedia = JSON.parse(supl.mediaPreWhsUrl)
+              if (parsedMedia && Array.isArray(parsedMedia)) {
+                mediaList.value = parsedMedia.map((m, idx) => ({
+                  uid: idx + 1,
+                  fileName: m.fileName,
+                  filePath: m.filePath,
+                  fileSize: m.fileSize,
+                  mediaType: m.mediaType || ''
+                }))
+                // 同时更新mediaFileList以匹配UI组件的期望格式
+                mediaFileList.value = parsedMedia.map((m, idx) => ({
+                  uid: idx + 1,
+                  name: m.fileName,
+                  status: 'success'
+                }))
+              }
+            } catch (e) {
+              console.error('Failed to parse mediaPreWhsUrl:', e)
             }
           }
         }

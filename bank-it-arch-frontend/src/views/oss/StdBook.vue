@@ -67,7 +67,17 @@
       </div>
       <div class="action-right">
         <el-button type="primary" plain>手工同步</el-button>
-        <el-button type="warning" plain>导出</el-button>
+        <el-dropdown trigger="click" @command="handleExport">
+          <el-button type="warning" plain>
+            导出<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="main">导出主要信息表</el-dropdown-item>
+              <el-dropdown-item command="detail">导出详情信息表</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
         <el-button type="danger" plain :loading="importLoading" @click="handleImportClick">导入</el-button>
         <input ref="importRef" type="file" accept=".xlsx,.xls" style="display:none" @change="handleImportChange" />
       </div>
@@ -75,7 +85,8 @@
 
     <!-- 列表区域 -->
     <div class="table-wrapper">
-      <el-table :data="tableData" border stripe v-loading="loading" class="data-table">
+      <el-table :data="tableData" border stripe v-loading="loading" class="data-table" @selection-change="handleSelectionChange">
+        <el-table-column type="selection" width="45" align="center" />
         <el-table-column type="index" label="序号" width="60" align="center" />
         <el-table-column prop="swName" label="开源软件名称" min-width="120" />
         <el-table-column prop="swVersion" label="版本" width="100" align="center" />
@@ -161,7 +172,8 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ossUseStandingBookApi, archAppApi } from '@/api'
 import { ElMessage } from 'element-plus'
-import { Search } from '@element-plus/icons-vue'
+import { Search, ArrowDown } from '@element-plus/icons-vue'
+import * as XLSX from 'xlsx'
 
 const loading = ref(false)
 const detailVisible = ref(false)
@@ -186,6 +198,11 @@ const tableData = ref([])
 const currentMain = ref({})
 const detailData = ref([])
 const detailPagination = reactive({ page: 1, pageSize: 20, total: 0 })
+const selectedRows = ref([])
+
+function handleSelectionChange(selection) {
+  selectedRows.value = selection
+}
 
 onMounted(() => {
   loadData()
@@ -264,6 +281,106 @@ async function handleImportChange(e) {
   } finally {
     importLoading.value = false
     e.target.value = ''
+  }
+}
+
+// 导出处理函数
+async function handleExport(command) {
+  if (command === 'main') {
+    await handleExportMain()
+  } else if (command === 'detail') {
+    await handleExportDetail()
+  }
+}
+
+// 导出主要信息表（Main表）
+async function handleExportMain() {
+  loading.value = true
+  try {
+    const params = { ...queryForm, page: 1, pageSize: 10000 }
+    const res = await ossUseStandingBookApi.exportMain(params)
+    const data = res.data || []
+
+    const exportData = data.map(item => ({
+      '开源软件名称': item.swName || '',
+      '版本': item.swVersion || '',
+      '开源软件全称': item.swFullName || '',
+      '分类': item.swCategory || '',
+      '许可证': item.licAbbr || '',
+      '环境': item.environment === 'PROD' ? '生产环境' : '开发测试环境',
+      '应用名称': item.appName || '',
+      '应用编号': item.appNo || '',
+      '扫描日期': item.scanDate || '',
+      '同步时间': item.syncDatetime || '',
+      '是否第三方': item.isCommerc === '是' ? '是' : '否'
+    }))
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, '使用台账主表')
+    XLSX.writeFile(workbook, `使用台账主表_${new Date().toISOString().slice(0, 10)}.xlsx`)
+    ElMessage.success('导出成功')
+  } catch (e) {
+    ElMessage.error('导出失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 导出详情信息表（Detail表）
+async function handleExportDetail() {
+  if (selectedRows.value.length === 0) {
+    ElMessage.warning('请先选择一条主表记录后再导出详情')
+    return
+  }
+  if (selectedRows.value.length > 1) {
+    ElMessage.warning('只能选择一条记录导出详情，请重新选择')
+    return
+  }
+  const selectedRow = selectedRows.value[0]
+  loading.value = true
+  try {
+    const params = { parentId: selectedRow.id, page: 1, pageSize: 10000 }
+    const res = await ossUseStandingBookApi.listDetails(params)
+    const data = res.data?.records || []
+
+    const isComponent = selectedRow.swCategory === '开源组件框架'
+
+    const exportData = data.map(item => {
+      const row = {
+        '开源软件名称': item.swName || '',
+        '版本': item.swVersion || '',
+        '开源软件全称': item.swFullName || '',
+        '应用名称': item.appName || '',
+        '许可证': item.licAbbr || '',
+        '环境': item.environment === 'PROD' ? '生产环境' : '开发测试环境',
+        '项目路径': item.installPath || '',
+        '扫描时间': item.scanTime ? item.scanTime.slice(0, 19) : ''
+      }
+      if (isComponent) {
+        row['项目'] = item.projectName || ''
+        row['文件类型'] = item.fileType || ''
+        row['依赖类型'] = item.dependType || ''
+      } else {
+        row['IP/主机名称'] = item.ipOrHostName || ''
+        row['启动命令'] = item.command || ''
+        row['是否第三方'] = item.isCommerc === '是' ? '是' : '否'
+        row['产品名称'] = item.commercProductName || ''
+        row['产品版本'] = item.commercProductVersion || ''
+      }
+      return row
+    })
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData)
+    const workbook = XLSX.utils.book_new()
+    const sheetName = isComponent ? '组件框架详情' : '基础软件详情'
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName)
+    XLSX.writeFile(workbook, `使用台账详情_${new Date().toISOString().slice(0, 10)}.xlsx`)
+    ElMessage.success('导出成功')
+  } catch (e) {
+    ElMessage.error('导出失败')
+  } finally {
+    loading.value = false
   }
 }
 </script>

@@ -25,6 +25,7 @@ public class UserContext {
     public static class UserInfo {
         private Long userId;
         private String username;
+        private String realName;
         private List<Long> roleIds;
         private List<String> roleCodes;
     }

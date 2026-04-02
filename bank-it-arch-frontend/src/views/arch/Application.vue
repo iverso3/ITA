@@ -1265,7 +1265,10 @@ const handleDoExport = async () => {
       version: '版本号', systemLayer: '系统所属层', remark: '备注',
       parentAppName: '应用所属系统', implementationUnit: '实施单位', goLiveDate: '投产时间',
       retireDate: '下线日期', mainBusinessDomain: '主业务功能领域', description: '应用简介',
-      appType: '应用类型', serviceObject: '服务对象', isInternetApp: '是否互联网应用'
+      appType: '应用类型', serviceObject: '服务对象', isInternetApp: '是否互联网应用',
+      secondaryBusinessDomain: '辅业务功能领域',
+      isPaymentApp: '是否支付应用', isElectronicBankingApp: '是否电子银行应用',
+      isOnlineBankingApp: '是否网上银行应用', isMobileApp: '是否移动应用'
     }
 
     const exportData = data.map(item => {
@@ -1274,6 +1277,10 @@ const handleDoExport = async () => {
         let value = item[key]
         if (key === 'status') value = getStatusText(value)
         if (key === 'isInternetApp') value = value === 1 ? '是' : '否'
+        if (key === 'isPaymentApp') value = value === 1 ? '是' : '否'
+        if (key === 'isElectronicBankingApp') value = value === 1 ? '是' : '否'
+        if (key === 'isOnlineBankingApp') value = value === 1 ? '是' : '否'
+        if (key === 'isMobileApp') value = value === 1 ? '是' : '否'
         row[fieldMap[key] || key] = value || ''
       })
       return row

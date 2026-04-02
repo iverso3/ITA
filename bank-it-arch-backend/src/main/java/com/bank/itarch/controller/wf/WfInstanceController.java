@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 流程实例控制器
@@ -322,6 +323,12 @@ public class WfInstanceController {
             WfDefinitionNode node = nodeMap.get(h.getNodeId());
             if (node == null) continue;
 
+            // 跳过条件节点和并行分支节点，这些是自动流转的节点，不显示在审批路径中
+            String nodeCategory = node.getNodeCategory();
+            if ("CONDITION".equals(nodeCategory) || "PARALLEL_BRANCH".equals(nodeCategory) || "PARALLEL_JOIN".equals(nodeCategory)) {
+                continue;
+            }
+
             int visitIdx = nodeCurrentVisit.getOrDefault(h.getNodeId(), 0) + 1;
             nodeCurrentVisit.put(h.getNodeId(), visitIdx);
 
@@ -369,6 +376,11 @@ public class WfInstanceController {
                 // 这个visit在历史中没有记录，需要手动追加
                 WfDefinitionNode node = nodeMap.get(nodeId);
                 if (node != null) {
+                    // 跳过条件节点和并行分支节点
+                    String nodeCategory = node.getNodeCategory();
+                    if ("CONDITION".equals(nodeCategory) || "PARALLEL_BRANCH".equals(nodeCategory) || "PARALLEL_JOIN".equals(nodeCategory)) {
+                        continue;
+                    }
                     WfTask task = pendingTaskByNode.get(nodeId);
                     WfTraceDTO.NodeTrace nt = new WfTraceDTO.NodeTrace();
                     nt.setNodeId(node.getId());
@@ -392,20 +404,70 @@ public class WfInstanceController {
         }
 
         // 5.3 添加未到达的节点（每个节点最多出现一次在未访问列表中）
-        // 计算每个节点在历史记录中的最大visitIndex
-        Map<Long, Integer> maxVisitInHistory = new HashMap<>();
-        for (WfTraceDTO.NodeTrace nt : nodeTraces) {
-            maxVisitInHistory.merge(nt.getNodeId(), nt.getVisitIndex(), Integer::max);
+
+        // 判断是否存在条件节点及其直接分支节点
+        // 找到条件节点
+        WfDefinitionNode conditionNode = allNodes.stream()
+            .filter(n -> "CONDITION".equals(n.getNodeCategory()))
+            .findFirst()
+            .orElse(null);
+
+        // 获取条件节点的直接分支目标节点ID集合
+        Set<Long> conditionDirectTargetIds = new HashSet<>();
+        if (conditionNode != null) {
+            allLines.stream()
+                .filter(l -> l.getSourceNodeId().equals(conditionNode.getId()))
+                .forEach(l -> conditionDirectTargetIds.add(l.getTargetNodeId()));
+        }
+
+        // 找出条件节点的直接分支中，哪些已经被访问（表示该分支被执行了）
+        Set<Long> visitedConditionBranchIds = new HashSet<>();
+        if (conditionNode != null) {
+            visitedConditionBranchIds = conditionDirectTargetIds.stream()
+                .filter(targetId -> nodeTraces.stream().anyMatch(nt -> nt.getNodeId().equals(targetId)))
+                .collect(java.util.stream.Collectors.toSet());
+        }
+
+        // 找出哪些未访问的节点是被其他已访问节点指向的（说明它是正常流程的后续节点，不是被跳过的分支）
+        // 对于每个未访问的节点，检查是否有已访问节点指向它
+        Set<Long> reachedFromVisitedNodeIds = new HashSet<>();
+        for (WfTraceDTO.NodeTrace visitedTrace : nodeTraces) {
+            // 找出所有从 visitedTrace 出发的连线
+            List<WfDefinitionLine> outgoingFromVisited = allLines.stream()
+                .filter(l -> l.getSourceNodeId().equals(visitedTrace.getNodeId()))
+                .toList();
+            for (WfDefinitionLine line : outgoingFromVisited) {
+                reachedFromVisitedNodeIds.add(line.getTargetNodeId());
+            }
         }
 
         List<WfTraceDTO.NodeTrace> unvisitedNodes = new ArrayList<>();
         for (WfDefinitionNode node : allNodes) {
             if ("START".equals(node.getNodeCategory())) continue; // 跳过START节点
+            // 跳过条件节点和并行分支节点，这些是自动流转的节点，不显示在审批路径中
+            String nodeCategory = node.getNodeCategory();
+            if ("CONDITION".equals(nodeCategory) || "PARALLEL_BRANCH".equals(nodeCategory) || "PARALLEL_JOIN".equals(nodeCategory)) {
+                continue;
+            }
 
             // 检查该节点是否已经有任何 visit 记录
             boolean hasAnyVisit = nodeTraces.stream()
                 .anyMatch(nt -> nt.getNodeId().equals(node.getId()));
             if (hasAnyVisit) continue; // 已有访问记录，跳过
+
+            // 如果节点被其他已访问节点指向，说明它是正常流程的后续节点，应该添加
+            if (reachedFromVisitedNodeIds.contains(node.getId())) {
+                // 这个节点是从已访问节点可达的，正常添加
+            } else if (conditionNode != null && conditionDirectTargetIds.contains(node.getId())) {
+                // 节点是条件节点的直接分支目标，且没有被已访问节点指向
+                // 检查该分支是否已被访问
+                if (!visitedConditionBranchIds.contains(node.getId())) {
+                    // 该分支未被访问，说明是被跳过了，不添加到未访问列表
+                    log.info("节点 {} (条件节点 {} 的直接分支) 未被访问且无其他路径到达，属于被跳过的分支，不添加",
+                        node.getNodeName(), conditionNode.getNodeName());
+                    continue;
+                }
+            }
 
             WfTraceDTO.NodeTrace nt = new WfTraceDTO.NodeTrace();
             nt.setNodeId(node.getId());
@@ -464,14 +526,22 @@ public class WfInstanceController {
         finalTraces.addAll(unvisitedNodes);
 
         // 6. 处理结束节点状态：如果实例已完成，则结束节点也标记为已完成
+        log.info("处理结束节点: instanceId={}, status={}, finalTraces.size={}, unvisitedNodes.size={}",
+            instance.getId(), instance.getStatus(), finalTraces.size(), unvisitedNodes.size());
         if ("COMPLETED".equals(instance.getStatus()) || "APPROVED".equals(instance.getStatus())) {
             for (WfTraceDTO.NodeTrace nt : finalTraces) {
                 WfDefinitionNode node = nodeMap.get(nt.getNodeId());
+                log.info("检查节点: nodeId={}, nodeName={}, nodeCategory={}",
+                    nt.getNodeId(), nt.getNodeName(), node != null ? node.getNodeCategory() : "null");
                 if (node != null && "END".equals(node.getNodeCategory())) {
+                    log.info("标记END节点为已完成: nodeId={}, nodeName={}", nt.getNodeId(), nt.getNodeName());
                     nt.setExecuted(true);
                     nt.setAction("COMPLETE");
                 }
             }
+        } else {
+            log.warn("实例状态不是COMPLETED/APPROVED，无法标记END节点: instanceId={}, status={}",
+                instance.getId(), instance.getStatus());
         }
 
         trace.setNodes(finalTraces);

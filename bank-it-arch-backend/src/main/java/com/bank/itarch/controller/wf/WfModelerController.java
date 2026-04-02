@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 流程建模器控制器
@@ -137,6 +138,25 @@ public class WfModelerController {
             result.add(savedDto);
         }
         return Result.success(result);
+    }
+
+    @PutMapping("/{definitionId}/nodes/{nodeId}/conditionRule")
+    @Operation(summary = "更新节点条件规则")
+    public Result<Void> updateNodeConditionRule(
+            @PathVariable Long definitionId,
+            @PathVariable Long nodeId,
+            @RequestBody Map<String, String> body) {
+        String conditionRule = body.get("conditionRule");
+        WfDefinitionNode node = nodeMapper.selectOne(
+            new LambdaQueryWrapper<WfDefinitionNode>()
+                .eq(WfDefinitionNode::getId, nodeId)
+                .eq(WfDefinitionNode::getDefinitionId, definitionId));
+        if (node == null) {
+            return Result.error("节点不存在");
+        }
+        node.setConditionRule(conditionRule);
+        nodeMapper.updateById(node);
+        return Result.success("更新成功", null);
     }
 
     @PutMapping("/{definitionId}/lines")

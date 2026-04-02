@@ -137,7 +137,7 @@ public class ApprovalNodeHandler extends AbstractNodeHandler {
     @Override
     public void leave(WfEngineContext context, WfToken token) {
         // 审批完成后，调用父类的leave方法来流转到下一节点
-        log.info("审批节点任务完成，流转到下一节点: nodeId={}", token.getCurrentNodeId());
+        log.info("ApprovalNodeHandler.leave: nodeId={}, nodeCode={}", token.getCurrentNodeId(), token.getCurrentNodeCode());
         super.leave(context, token);
     }
 

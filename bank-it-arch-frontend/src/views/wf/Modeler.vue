@@ -151,14 +151,59 @@
           <!-- 条件节点特有属性 -->
           <template v-if="workflowStore.selectedNode.data.nodeCategory === 'CONDITION'">
             <el-divider>条件配置</el-divider>
-            <el-form-item label="条件表达式">
-              <el-input
-                v-model="workflowStore.selectedNode.data.conditionRule"
-                type="textarea"
-                :rows="4"
-                placeholder='{"conditions":[{"label":"金额>10000","expression":"amount > 10000","targetNodeId":5}]}'
-              />
-            </el-form-item>
+            <div class="condition-config">
+              <div class="condition-tip">当流转到该节点时，根据条件表达式计算结果决定下一节点</div>
+
+              <!-- 条件列表 -->
+              <div class="condition-list">
+                <div v-for="(cond, index) in conditionConfig.conditions" :key="index" class="condition-item">
+                  <div class="condition-header">
+                    <span class="condition-label">条件 {{ index + 1 }}</span>
+                    <el-button type="danger" size="small" text @click="removeCondition(index)">删除</el-button>
+                  </div>
+                  <el-form-item label="标签" size="small">
+                    <el-input v-model="cond.label" placeholder="如：金额大于1万" />
+                  </el-form-item>
+                  <el-form-item label="表达式" size="small">
+                    <el-input v-model="cond.expression" placeholder="如：amount > 10000" />
+                  </el-form-item>
+                  <el-form-item label="目标节点" size="small">
+                    <el-select v-model="cond.targetNodeId" placeholder="选择目标节点">
+                      <el-option
+                        v-for="node in availableTargetNodes"
+                        :key="node.id"
+                        :label="node.data.nodeName"
+                        :value="node.id"
+                      />
+                    </el-select>
+                  </el-form-item>
+                </div>
+              </div>
+
+              <!-- 添加条件按钮 -->
+              <el-button type="primary" plain size="small" @click="addCondition" :disabled="availableTargetNodes.length === 0">
+                + 添加条件
+              </el-button>
+
+              <!-- 默认节点 -->
+              <el-form-item label="默认节点" size="small" style="margin-top: 12px;">
+                <el-select v-model="conditionConfig.defaultNodeId" placeholder="无匹配条件时走默认节点">
+                  <el-option label="无（不流转）" :value="null" />
+                  <el-option
+                    v-for="node in availableTargetNodes"
+                    :key="node.id"
+                    :label="node.data.nodeName"
+                    :value="node.id"
+                  />
+                </el-select>
+              </el-form-item>
+
+              <!-- 预览JSON -->
+              <div class="condition-preview">
+                <div class="preview-label">JSON预览：</div>
+                <pre class="preview-code">{{ conditionRuleJson }}</pre>
+              </div>
+            </div>
           </template>
         </el-form>
 
@@ -205,7 +250,7 @@ import '@vue-flow/minimap/dist/style.css'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useWorkflowStore } from '@/store/workflow'
 import { VideoPlay, CircleClose, User, Switch, Connection, ArrowRight, Close } from '@element-plus/icons-vue'
-import { flowRoleApi } from '@/api'
+import { flowRoleApi, wfApi } from '@/api'
 
 // 导入节点组件
 import StartNode from '@/components/wf/nodes/StartNode.vue'
@@ -235,6 +280,109 @@ const nodeTypes = {
   CONDITION: 'CONDITION',
   PARALLEL_BRANCH: 'PARALLEL_BRANCH',
   PARALLEL_JOIN: 'PARALLEL_JOIN'
+}
+
+// ===== 条件节点配置 =====
+// 可作为条件分支目标节点的列表（排除自身和开始节点）
+const availableTargetNodes = computed(() => {
+  const selectedId = workflowStore.selectedNode?.id
+  if (!selectedId) return []
+  return nodes.value.filter(n =>
+    n.id !== selectedId &&
+    n.data.nodeCategory !== 'START' &&
+    n.data.nodeCategory !== 'CONDITION'
+  )
+})
+
+// 条件配置 - 使用独立的响应式对象
+import { watch, reactive } from 'vue'
+
+const conditionConfig = reactive({
+  conditions: [],
+  defaultNodeId: null
+})
+
+// 监听选中节点变化，加载条件规则
+watch(
+  () => workflowStore.selectedNode?.id,
+  () => {
+    const rule = workflowStore.selectedNode?.data?.conditionRule
+    if (rule) {
+      try {
+        const parsed = JSON.parse(rule)
+        conditionConfig.conditions = parsed.conditions || []
+        conditionConfig.defaultNodeId = parsed.defaultNodeId || null
+      } catch {
+        conditionConfig.conditions = []
+        conditionConfig.defaultNodeId = null
+      }
+    } else {
+      conditionConfig.conditions = []
+      conditionConfig.defaultNodeId = null
+    }
+  },
+  { immediate: true }
+)
+
+// 监听条件配置变化，同步到节点数据
+watch(
+  () => ({ ...conditionConfig }),
+  (val) => {
+    if (workflowStore.selectedNode?.data) {
+      workflowStore.selectedNode.data.conditionRule = JSON.stringify({
+        conditions: val.conditions || [],
+        defaultNodeId: val.defaultNodeId || null
+      })
+    }
+  },
+  { deep: true }
+)
+
+// JSON预览
+const conditionRuleJson = computed(() => {
+  try {
+    return JSON.stringify({
+      conditions: conditionConfig.conditions || [],
+      defaultNodeId: conditionConfig.defaultNodeId || null
+    }, null, 2)
+  } catch {
+    return '{}'
+  }
+})
+
+// 添加条件
+function addCondition() {
+  conditionConfig.conditions.push({ label: '', expression: '', targetNodeId: null })
+}
+
+// 删除条件
+function removeCondition(index) {
+  conditionConfig.conditions.splice(index, 1)
+}
+
+// 修正conditionRule中的临时ID为真实ID
+function correctConditionRule(conditionRule, nodeIdMap) {
+  if (!conditionRule) return null
+  try {
+    const rule = JSON.parse(conditionRule)
+    if (rule.conditions) {
+      rule.conditions.forEach(cond => {
+        if (cond.targetNodeId && nodeIdMap[cond.targetNodeId]) {
+          console.log(`[correctConditionRule] Replacing targetNodeId ${cond.targetNodeId} -> ${nodeIdMap[cond.targetNodeId]}`)
+          cond.targetNodeId = nodeIdMap[cond.targetNodeId]
+        } else if (cond.targetNodeId) {
+          console.log(`[correctConditionRule] targetNodeId ${cond.targetNodeId} NOT FOUND in nodeIdMap, keeping original`)
+        }
+      })
+    }
+    if (rule.defaultNodeId && nodeIdMap[rule.defaultNodeId]) {
+      rule.defaultNodeId = nodeIdMap[rule.defaultNodeId]
+    }
+    return JSON.stringify(rule)
+  } catch (e) {
+    console.error('Failed to correct conditionRule:', e)
+    return conditionRule
+  }
 }
 
 // 拖拽开始
@@ -400,8 +548,15 @@ async function handleSave() {
   try {
     const definitionId = route.params.id || 0
 
+    console.log('[handleSave] nodes.value:', nodes.value.map(n => ({
+      id: n.id,
+      name: n.data.nodeName,
+      category: n.data.nodeCategory,
+      conditionRule: n.data.conditionRule
+    })))
+
     // 构建节点列表，保持与nodes.value相同的顺序
-    const nodeList = nodes.value.map(n => ({
+    const nodeList = nodes.value.map((n, index) => ({
       id: n.id.startsWith('node_') ? null : n.id,
       nodeCode: n.data.nodeCode,
       nodeName: n.data.nodeName,
@@ -412,7 +567,8 @@ async function handleSave() {
       timeoutAction: n.data.timeoutAction,
       conditionRule: n.data.conditionRule,
       positionX: n.position.x,
-      positionY: n.position.y
+      positionY: n.position.y,
+      nodeOrder: n.data.nodeOrder !== undefined ? n.data.nodeOrder : index
     }))
 
     const saveNodesResult = await workflowStore.saveNodes(definitionId, nodeList)
@@ -431,6 +587,20 @@ async function handleSave() {
         }
       })
     }
+
+    // 用真实ID更新conditionRule中的targetNodeId，并保存到数据库
+    for (const n of nodes.value) {
+      if (n.data.conditionRule) {
+        const corrected = correctConditionRule(n.data.conditionRule, nodeIdMap)
+        n.data.conditionRule = corrected
+        // 调用API更新数据库中的conditionRule
+        if (!n.id.startsWith('node_')) {
+          await wfApi.modeler.updateNodeConditionRule(definitionId, n.id, corrected)
+        }
+      }
+    }
+
+    // 用真实ID更新连线的source和target
 
     // 用真实ID更新连线的source和target
     edges.value.forEach(e => {
@@ -537,7 +707,8 @@ onMounted(async () => {
           flowRoleId: n.flowRoleId,
           timeoutDuration: n.timeoutDuration,
           timeoutAction: n.timeoutAction,
-          conditionRule: n.conditionRule
+          conditionRule: n.conditionRule,
+          nodeOrder: n.nodeOrder !== undefined ? n.nodeOrder : index
         }
       }))
 
@@ -670,5 +841,68 @@ onMounted(async () => {
 
 :deep(.vue-flow__node) {
   cursor: pointer;
+}
+
+/* 条件节点配置样式 */
+.condition-config {
+  padding: 8px 0;
+}
+
+.condition-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.condition-list {
+  margin-bottom: 12px;
+}
+
+.condition-item {
+  background: #f5f7fa;
+  border-radius: 4px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.condition-item .el-form-item {
+  margin-bottom: 8px;
+}
+
+.condition-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.condition-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.condition-preview {
+  margin-top: 12px;
+  padding: 8px;
+  background: #f5f7fa;
+  border-radius: 4px;
+}
+
+.preview-label {
+  font-size: 12px;
+  color: #606266;
+  margin-bottom: 4px;
+}
+
+.preview-code {
+  font-size: 11px;
+  color: #409eff;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 120px;
+  overflow-y: auto;
 }
 </style>

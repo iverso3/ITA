@@ -420,14 +420,12 @@
           <el-form-item label="主推荐版本" prop="recommendedVersion">
             <el-input v-model="softwareForm.recommendedVersion" placeholder="如: 1.20.0" />
           </el-form-item>
-          <el-form-item label="责任团队" prop="rspTeamId">
-            <el-select v-model="softwareForm.rspTeamId" style="width: 100%;" filterable placeholder="请选择" @change="handleTeamChange">
-              <el-option v-for="team in teamList" :key="team.id" :label="team.teamName" :value="team.id" />
-            </el-select>
+          <el-form-item label="责任团队" prop="rspTeamName">
+            <el-input v-model="softwareForm.rspTeamName" placeholder="请输入责任团队" />
           </el-form-item>
           <el-form-item label="责任人" prop="rspUserId">
             <el-select v-model="softwareForm.rspUserId" style="width: 100%;" filterable placeholder="请选择">
-              <el-option v-for="user in userList" :key="user.userId" :label="`${user.userCode}-${user.userName}`" :value="user.userId" />
+              <el-option v-for="user in userList" :key="user.id" :label="`${user.username}-${user.realName}`" :value="user.id" />
             </el-select>
           </el-form-item>
           <el-form-item label="产品类型" prop="productType">
@@ -540,12 +538,10 @@
                 </el-select>
               </el-form-item>
               <el-form-item label="生效日期" prop="effectDatetime">
-                <el-date-picker v-model="versionForm.effectDatetime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width: 100%;" placeholder="选择日期时间" />
+                <el-date-picker v-model="versionForm.effectDatetime" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" style="width: 100%;" placeholder="选择日期时间" />
               </el-form-item>
-              <el-form-item label="引入团队" prop="implTeamId">
-                <el-select v-model="versionForm.implTeamId" style="width: 100%;" filterable placeholder="请选择" @change="handleImplTeamChange">
-                  <el-option v-for="team in teamList" :key="team.id" :label="team.teamName" :value="team.id" />
-                </el-select>
+              <el-form-item label="引入团队" prop="implTeamName">
+                <el-input v-model="versionForm.implTeamName" placeholder="请输入引入团队" />
               </el-form-item>
               <el-form-item label="引入申请人" prop="implUserName">
                 <el-input v-model="versionForm.implUserName" placeholder="请输入" />
@@ -579,7 +575,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Download, Search, Refresh } from '@element-plus/icons-vue'
 import { ossSoftwareApi, ossSoftwareBaselineApi, sysTeamApi, sysUserApi } from '@/api'
@@ -627,7 +623,7 @@ const formRules = {
   swName: [{ required: true, message: '请输入开源软件名称', trigger: 'blur' }],
   swCategory: [{ required: true, message: '请选择软件分类', trigger: 'change' }],
   swType: [{ required: true, message: '请选择软件类型', trigger: 'change' }],
-  rspTeamId: [{ required: true, message: '请选择责任团队', trigger: 'change' }],
+  rspTeamName: [{ required: true, message: '请输入责任团队', trigger: 'blur' }],
   rspUserId: [{ required: true, message: '请选择责任人', trigger: 'change' }],
   productType: [{ required: true, message: '请选择产品类型', trigger: 'change' }]
 }
@@ -688,7 +684,7 @@ const versionFormRules = {
   applicableScene: [{ required: true, message: '请选择适用场景', trigger: 'change' }],
   applicableFunctionRange: [{ required: true, message: '请选择适用职能范围', trigger: 'change' }],
   effectDatetime: [{ required: true, message: '请选择生效日期', trigger: 'change' }],
-  implTeamId: [{ required: true, message: '请选择引入团队', trigger: 'change' }],
+  implTeamName: [{ required: true, message: '请输入引入团队', trigger: 'blur' }],
   implUserName: [{ required: true, message: '请输入引入申请人', trigger: 'blur' }]
 }
 
@@ -843,13 +839,6 @@ const handleDocument = (row) => {
   mediaQueryForm.swVersion = row.recommendedVersion || ''
   mediaQueryForm.swCategory = row.swCategory
   handleMediaQuery()
-}
-
-const handleTeamChange = (teamId) => {
-  const team = teamList.value.find(t => t.id === teamId)
-  if (team) {
-    softwareForm.rspTeamName = team.teamName
-  }
 }
 
 const handleSubmit = async () => {
@@ -1055,13 +1044,6 @@ const handleVersionDocument = (row) => {
   handleMediaQuery()
 }
 
-const handleImplTeamChange = (teamId) => {
-  const team = teamList.value.find(t => t.id === teamId)
-  if (team) {
-    versionForm.implTeamName = team.teamName
-  }
-}
-
 // Media document functions
 const loadMediaData = async () => {
   mediaLoading.value = true
@@ -1127,6 +1109,17 @@ onMounted(() => {
   loadTeamList()
   loadUserList()
   loadData()
+  loadVersionData()
+  loadMediaData()
+})
+
+// 监听activeTab变化时加载对应tab的数据
+watch(activeTab, (newTab) => {
+  if (newTab === 'version') {
+    loadVersionData()
+  } else if (newTab === 'document') {
+    loadMediaData()
+  }
 })
 </script>
 

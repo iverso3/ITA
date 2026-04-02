@@ -18,11 +18,21 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 @RestController
@@ -36,6 +46,9 @@ public class OssImplApplyController {
     private final OssSoftwareService softwareService;
     private final WfProcessEngine processEngine;
     private final WfInstanceVariableMapper variableMapper;
+
+    @Value("${file.upload.path:/tmp/uploads}")
+    private String uploadPath;
 
     @GetMapping("/list")
     @Operation(summary = "申请列表")
@@ -102,6 +115,18 @@ public class OssImplApplyController {
         return Result.success(implApplySuplService.getOrCreateByImplApplyNo(implApplyNo));
     }
 
+    @GetMapping("/supplementary/by-uuid/{uuid}")
+    @Operation(summary = "根据UUID获取申请拓展信息(用于工作流查看)")
+    public Result<OssImplApplySuplDTO> getSupplementaryByUuid(@PathVariable String uuid) {
+        // 先根据UUID获取申请记录
+        OssImplApplyDTO applyDTO = implApplyService.getById(uuid);
+        if (applyDTO == null || applyDTO.getImplApplyNo() == null) {
+            return Result.error("申请记录不存在");
+        }
+        // 再获取拓展信息
+        return Result.success(implApplySuplService.getOrCreateByImplApplyNo(applyDTO.getImplApplyNo()));
+    }
+
     @PutMapping("/supplementary/{implApplyNo}")
     @Operation(summary = "更新申请拓展信息")
     public Result<OssImplApplySuplDTO> updateSupplementary(@PathVariable String implApplyNo, @RequestBody OssImplApplySuplDTO dto) {
@@ -163,5 +188,110 @@ public class OssImplApplyController {
     public Result<OssImplApplyDTO> getByUuid(@PathVariable String uuid) {
         OssImplApplyDTO dto = implApplyService.getById(uuid);
         return Result.success(dto);
+    }
+
+    @PostMapping("/upload-attachment")
+    @Operation(summary = "上传附件")
+    public Result<Map<String, String>> uploadAttachment(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("implApplyNo") String implApplyNo) {
+        if (file.isEmpty()) {
+            return Result.error("文件不能为空");
+        }
+        try {
+            // 创建上传目录
+            Path uploadDir = Paths.get(uploadPath, "attachments", implApplyNo);
+            if (!Files.exists(uploadDir)) {
+                Files.createDirectories(uploadDir);
+            }
+
+            // 生成唯一文件名
+            String originalFilename = file.getOriginalFilename();
+            String ext = "";
+            if (originalFilename != null && originalFilename.contains(".")) {
+                ext = originalFilename.substring(originalFilename.lastIndexOf("."));
+            }
+            String newFilename = UUID.randomUUID().toString() + ext;
+            Path filePath = uploadDir.resolve(newFilename);
+
+            // 保存文件
+            file.transferTo(filePath.toFile());
+
+            // 返回相对路径
+            String relativePath = "attachments/" + implApplyNo + "/" + newFilename;
+            log.info("文件上传成功: originalFilename={}, savedPath={}", originalFilename, relativePath);
+
+            return Result.success(Map.of(
+                "fileName", originalFilename != null ? originalFilename : file.getName(),
+                "filePath", relativePath,
+                "fileSize", String.valueOf(file.getSize())
+            ));
+        } catch (IOException e) {
+            log.error("文件上传失败", e);
+            return Result.error("文件上传失败: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/upload-media")
+    @Operation(summary = "上传介质文档")
+    public Result<Map<String, String>> uploadMedia(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("implApplyNo") String implApplyNo,
+            @RequestParam("mediaType") String mediaType) {
+        if (file.isEmpty()) {
+            return Result.error("文件不能为空");
+        }
+        try {
+            // 创建上传目录
+            Path uploadDir = Paths.get(uploadPath, "media", implApplyNo, mediaType);
+            if (!Files.exists(uploadDir)) {
+                Files.createDirectories(uploadDir);
+            }
+
+            // 生成唯一文件名
+            String originalFilename = file.getOriginalFilename();
+            String ext = "";
+            if (originalFilename != null && originalFilename.contains(".")) {
+                ext = originalFilename.substring(originalFilename.lastIndexOf("."));
+            }
+            String newFilename = UUID.randomUUID().toString() + ext;
+            Path filePath = uploadDir.resolve(newFilename);
+
+            // 保存文件
+            file.transferTo(filePath.toFile());
+
+            // 返回相对路径
+            String relativePath = "media/" + implApplyNo + "/" + mediaType + "/" + newFilename;
+            log.info("介质上传成功: originalFilename={}, mediaType={}, savedPath={}", originalFilename, mediaType, relativePath);
+
+            return Result.success(Map.of(
+                "fileName", originalFilename != null ? originalFilename : file.getName(),
+                "filePath", relativePath,
+                "fileSize", String.valueOf(file.getSize()),
+                "mediaType", mediaType
+            ));
+        } catch (IOException e) {
+            log.error("介质上传失败", e);
+            return Result.error("介质上传失败: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/download")
+    @Operation(summary = "下载文件")
+    public void downloadFile(@RequestParam("filePath") String filePath, HttpServletResponse response) {
+        try {
+            Path file = Paths.get(uploadPath, filePath);
+            if (!Files.exists(file)) {
+                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                return;
+            }
+            String fileName = file.getFileName().toString();
+            response.setContentType("application/octet-stream");
+            response.setHeader("Content-Disposition", "attachment; filename=\"" + java.net.URLEncoder.encode(fileName, "UTF-8") + "\"");
+            Files.copy(file, response.getOutputStream());
+        } catch (IOException e) {
+            log.error("文件下载失败", e);
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        }
     }
 }

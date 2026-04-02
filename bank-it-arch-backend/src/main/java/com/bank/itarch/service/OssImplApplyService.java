@@ -183,8 +183,13 @@ public class OssImplApplyService extends ServiceImpl<OssImplApplyInfoMapper, Oss
     @Transactional
     public void syncToSoftware(String implApplyNo) {
         log.info("syncToSoftware start: implApplyNo={}", implApplyNo);
+        if (implApplyNo == null || implApplyNo.trim().isEmpty()) {
+            log.error("syncToSoftware失败: implApplyNo为空");
+            throw new BusinessException(2001, "implApplyNo不能为空");
+        }
         OssImplApplyDTO applyDTO = getByImplApplyNo(implApplyNo);
         if (applyDTO == null) {
+            log.error("syncToSoftware失败: 未找到申请记录 implApplyNo={}", implApplyNo);
             throw new BusinessException(2001, "Application not found: " + implApplyNo);
         }
         log.info("syncToSoftware: implApplyType={}, swId={}, swName={}, swVersion={}",
@@ -215,11 +220,13 @@ public class OssImplApplyService extends ServiceImpl<OssImplApplyInfoMapper, Oss
             OssSoftware software = new OssSoftware();
             software.setSwName(applyDTO.getSwName());
             software.setSwCategory(applyDTO.getSwCategory());
-            software.setSwType(applyDTO.getSwType());
-            software.setRspTeamId(applyDTO.getRspTeamId());
-            software.setRspTeamName(applyDTO.getRspTeamName());
-            software.setRspUserId(applyDTO.getRspUserId());
-            software.setRspUserName(applyDTO.getRspUserName());
+            // 如果是主推荐使用版本，则软件类型设为主推荐版本
+            software.setSwType("1".equals(applyDTO.getIsMainUse()) ? "MAIN" : applyDTO.getSwType());
+            // 责任团队信息（数据库NOT NULL字段，使用空字符串作为默认值）
+            software.setRspTeamId(applyDTO.getRspTeamId() != null ? applyDTO.getRspTeamId() : "");
+            software.setRspTeamName(applyDTO.getRspTeamName() != null ? applyDTO.getRspTeamName() : "");
+            software.setRspUserId(applyDTO.getRspUserId() != null ? applyDTO.getRspUserId() : "");
+            software.setRspUserName(applyDTO.getRspUserName() != null ? applyDTO.getRspUserName() : "");
             software.setProductType(applyDTO.getProductType());
             software.setApplicationScene(applyDTO.getApplicationScene());
             software.setDataSrcFlag("0"); // 人工引入
@@ -236,10 +243,10 @@ public class OssImplApplyService extends ServiceImpl<OssImplApplyInfoMapper, Oss
         } else {
             // 更新现有软件记录的相关字段
             existingSoftware.setSwType(applyDTO.getSwType());
-            existingSoftware.setRspTeamId(applyDTO.getRspTeamId());
-            existingSoftware.setRspTeamName(applyDTO.getRspTeamName());
-            existingSoftware.setRspUserId(applyDTO.getRspUserId());
-            existingSoftware.setRspUserName(applyDTO.getRspUserName());
+            existingSoftware.setRspTeamId(applyDTO.getRspTeamId() != null ? applyDTO.getRspTeamId() : "");
+            existingSoftware.setRspTeamName(applyDTO.getRspTeamName() != null ? applyDTO.getRspTeamName() : "");
+            existingSoftware.setRspUserId(applyDTO.getRspUserId() != null ? applyDTO.getRspUserId() : "");
+            existingSoftware.setRspUserName(applyDTO.getRspUserName() != null ? applyDTO.getRspUserName() : "");
             existingSoftware.setProductType(applyDTO.getProductType());
             existingSoftware.setApplicationScene(applyDTO.getApplicationScene());
             softwareMapper.updateById(existingSoftware);
@@ -258,7 +265,8 @@ public class OssImplApplyService extends ServiceImpl<OssImplApplyInfoMapper, Oss
      * 同步数据到版本清单表（首次引入和新版本引入都需要）
      */
     private void syncToBaseline(OssImplApplyDTO applyDTO) {
-        log.info("syncToBaseline start: swId={}, swName={}, swVersion={}", applyDTO.getSwId(), applyDTO.getSwName(), applyDTO.getSwVersion());
+        log.info("syncToBaseline start: swId={}, swName={}, swVersion={}, implTeamId={}, implUserId={}",
+                applyDTO.getSwId(), applyDTO.getSwName(), applyDTO.getSwVersion(), applyDTO.getImplTeamId(), applyDTO.getImplUserId());
 
         // 检查该版本是否已存在于版本清单表，避免重复插入
         if (applyDTO.getSwId() != null && applyDTO.getSwVersion() != null) {
@@ -274,24 +282,26 @@ public class OssImplApplyService extends ServiceImpl<OssImplApplyInfoMapper, Oss
         }
 
         OssSoftwareBaseline baseline = new OssSoftwareBaseline();
-        baseline.setSwId(applyDTO.getSwId());
+        baseline.setSwId(applyDTO.getSwId() != null ? applyDTO.getSwId() : "");
         baseline.setSwName(applyDTO.getSwName());
         baseline.setSwVersion(applyDTO.getSwVersion());
         baseline.setSwCategory(applyDTO.getSwCategory());
-        baseline.setSwType(applyDTO.getSwType());
+        // 如果是主推荐使用版本，则软件类型设为主推荐版本
+        baseline.setSwType("1".equals(applyDTO.getIsMainUse()) ? "MAIN" : applyDTO.getSwType());
         baseline.setVerType(applyDTO.getVerType());
-        baseline.setImplTeamId(applyDTO.getImplTeamId());
-        baseline.setImplTeamName(applyDTO.getImplTeamName());
-        baseline.setImplUserId(applyDTO.getImplUserId());
-        baseline.setImplUserName(applyDTO.getImplUserName());
+        // 实施团队信息（数据库NOT NULL字段，使用空字符串作为默认值）
+        baseline.setImplTeamId(applyDTO.getImplTeamId() != null ? applyDTO.getImplTeamId() : "");
+        baseline.setImplTeamName(applyDTO.getImplTeamName() != null ? applyDTO.getImplTeamName() : "");
+        baseline.setImplUserId(applyDTO.getImplUserId() != null ? applyDTO.getImplUserId() : "");
+        baseline.setImplUserName(applyDTO.getImplUserName() != null ? applyDTO.getImplUserName() : "");
         baseline.setImplApplyNo(applyDTO.getImplApplyNo());
         baseline.setLicId(applyDTO.getLicId());
         baseline.setLicAbbr(applyDTO.getLicAbbr());
         baseline.setIsMainUse(applyDTO.getIsMainUse());
         baseline.setApplicableScene(applyDTO.getApplicableScene());
         baseline.setApplicableFunctionRange(applyDTO.getApplicableFunctionRange());
-        baseline.setUseBranchId(applyDTO.getUseBranchId());
-        baseline.setUseBranchName(applyDTO.getUseBranchName());
+        baseline.setUseBranchId(applyDTO.getUseBranchId() != null ? applyDTO.getUseBranchId() : "");
+        baseline.setUseBranchName(applyDTO.getUseBranchName() != null ? applyDTO.getUseBranchName() : "");
         baseline.setDataSrcFlag("0"); // 人工引入
         baseline.setCreateMode(0);
         baselineMapper.insert(baseline);
