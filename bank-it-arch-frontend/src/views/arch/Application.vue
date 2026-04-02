@@ -1211,20 +1211,17 @@ const handleDoImport = async () => {
     return
   }
   try {
-    const reader = new FileReader()
-    reader.onload = async (e) => {
-      const data = new Uint8Array(e.target.result)
-      const workbook = XLSX.read(data, { type: 'array' })
-      const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
-      const jsonData = XLSX.utils.sheet_to_json(firstSheet)
-      ElMessage.success(`成功解析 ${jsonData.length} 条数据，正在导入...`)
-      // 实际项目中这里应该调用后端API导入
-      importDialogVisible.value = false
-      loadData()
-    }
-    reader.readAsArrayBuffer(importFile.value)
+    const formData = new FormData()
+    formData.append('file', importFile.value)
+    const res = await archAppApi.import(formData)
+    const importResult = res.data || {}
+    const updated = importResult.updated || 0
+    const created = importResult.created || 0
+    ElMessage.success(`导入完成：新增 ${created} 条，更新 ${updated} 条`)
+    importDialogVisible.value = false
+    loadData()
   } catch (e) {
-    ElMessage.error('导入失败')
+    ElMessage.error(e?.message || e?.response?.data?.message || '导入失败')
   }
 }
 
