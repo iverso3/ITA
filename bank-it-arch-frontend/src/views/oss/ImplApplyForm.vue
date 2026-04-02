@@ -376,10 +376,12 @@ const handleApplyTypeChange = () => {
 const handleSoftwareChange = (swId) => {
   if (!swId) {
     // 清空选择时，重置相关字段
+    formData.swId = ''
     formData.swName = ''
     formData.swCategory = ''
     return
   }
+  formData.swId = swId
   const sw = softwareList.value.find(s => s.id === swId)
   if (sw) {
     formData.swName = sw.swName
@@ -482,15 +484,43 @@ const handleSubmit = async () => {
 
   // 首次引入时，检查软件名称和版本是否已存在
   if (formData.implApplyType === '0') {
+    if (!formData.swName || !formData.swVersion) {
+      ElMessage.warning('请输入软件名称和版本')
+      return
+    }
     try {
+      console.log('checkDuplicate params:', formData.swName, formData.swVersion)
       const checkRes = await ossImplApplyApi.checkDuplicate(formData.swName, formData.swVersion)
-      if (checkRes.code === 200 && checkRes.data?.exists) {
-        ElMessage.warning('该软件版本已引入，请检查申请信息')
+      console.log('checkDuplicate response:', checkRes)
+      if (checkRes && checkRes.code === 200 && checkRes.data && checkRes.data.exists === true) {
+        ElMessage.warning('该软件已存在，请检查是否应为新版本引入')
         return
       }
     } catch (error) {
       console.error('Failed to check duplicate:', error)
-      // 检查失败不影响提交流程
+      ElMessage.error('重复检查失败，请稍后重试')
+      return
+    }
+  }
+
+  // 新版本引入时，检查软件特定版本是否已存在于版本清单表
+  if (formData.implApplyType === '1') {
+    if (!formData.swId || !formData.swVersion) {
+      ElMessage.warning('请选择软件并输入版本号')
+      return
+    }
+    try {
+      console.log('checkVersionExists params:', formData.swId, formData.swVersion)
+      const checkRes = await ossImplApplyApi.checkVersionExists(formData.swId, formData.swVersion)
+      console.log('checkVersionExists response:', checkRes)
+      if (checkRes && checkRes.code === 200 && checkRes.data && checkRes.data.exists === true) {
+        ElMessage.warning('该软件版本已存在，请检查申请信息')
+        return
+      }
+    } catch (error) {
+      console.error('Failed to check version exists:', error)
+      ElMessage.error('版本重复检查失败，请稍后重试')
+      return
     }
   }
 

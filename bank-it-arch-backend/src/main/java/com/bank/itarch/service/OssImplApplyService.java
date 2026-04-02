@@ -16,6 +16,7 @@ import com.bank.itarch.model.entity.OssImplApplyInfo;
 import com.bank.itarch.model.entity.OssSoftware;
 import com.bank.itarch.model.entity.OssSoftwareBaseline;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OssImplApplyService extends ServiceImpl<OssImplApplyInfoMapper, OssImplApplyInfo> {
@@ -136,16 +138,42 @@ public class OssImplApplyService extends ServiceImpl<OssImplApplyInfoMapper, Oss
 
     /**
      * 检查软件名称和版本是否已存在（用于首次引入时的重复校验）
+     * 检查范围：1）版本清单表(oss_software_baseline) 2）软件信息表(oss_software_info)
      * @param swName 软件名称
      * @param swVersion 软件版本
      * @return true 表示已存在，false 表示不存在
      */
     public boolean checkDuplicate(String swName, String swVersion) {
-        LambdaQueryWrapper<OssSoftwareBaseline> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(OssSoftwareBaseline::getSwName, swName)
+        // 1. 检查版本清单表 - 如果同名软件的该版本已存在，则重复
+        LambdaQueryWrapper<OssSoftwareBaseline> baselineWrapper = new LambdaQueryWrapper<>();
+        baselineWrapper.eq(OssSoftwareBaseline::getSwName, swName)
                .eq(OssSoftwareBaseline::getSwVersion, swVersion)
                .eq(OssSoftwareBaseline::getLogicStatus, 0);
-        return baselineMapper.selectCount(wrapper) > 0;
+        if (baselineMapper.selectCount(baselineWrapper) > 0) {
+            return true;
+        }
+        // 2. 检查软件信息表 - 如果软件名称已存在，则该软件不是首次引入，而是新版本引入
+        LambdaQueryWrapper<OssSoftware> softwareWrapper = new LambdaQueryWrapper<>();
+        softwareWrapper.eq(OssSoftware::getSwName, swName)
+               .eq(OssSoftware::getLogicStatus, 0);
+        return softwareMapper.selectCount(softwareWrapper) > 0;
+    }
+
+    /**
+     * 检查软件特定版本是否已存在于版本清单表中（用于新版本引入时的重复校验）
+     * @param swId 软件ID
+     * @param swVersion 软件版本
+     * @return true 表示该版本已存在，false 表示不存在
+     */
+    public boolean checkVersionExistsInBaseline(String swId, String swVersion) {
+        log.info("checkVersionExistsInBaseline: swId={}, swVersion={}", swId, swVersion);
+        LambdaQueryWrapper<OssSoftwareBaseline> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(OssSoftwareBaseline::getSwId, swId)
+               .eq(OssSoftwareBaseline::getSwVersion, swVersion)
+               .eq(OssSoftwareBaseline::getLogicStatus, 0);
+        long count = baselineMapper.selectCount(wrapper);
+        log.info("checkVersionExistsInBaseline: count={}", count);
+        return count > 0;
     }
 
     /**
@@ -154,18 +182,23 @@ public class OssImplApplyService extends ServiceImpl<OssImplApplyInfoMapper, Oss
      */
     @Transactional
     public void syncToSoftware(String implApplyNo) {
+        log.info("syncToSoftware start: implApplyNo={}", implApplyNo);
         OssImplApplyDTO applyDTO = getByImplApplyNo(implApplyNo);
         if (applyDTO == null) {
             throw new BusinessException(2001, "Application not found: " + implApplyNo);
         }
+        log.info("syncToSoftware: implApplyType={}, swId={}, swName={}, swVersion={}",
+                applyDTO.getImplApplyType(), applyDTO.getSwId(), applyDTO.getSwName(), applyDTO.getSwVersion());
 
         // 首次引入：同步到软件表和版本清单表
         if ("0".equals(applyDTO.getImplApplyType())) {
             syncToSoftwareInfo(applyDTO);
+            log.info("syncToSoftware: first-time introduction, software info synced, swId={}", applyDTO.getSwId());
         }
 
         // 同步到版本清单表（首次引入和新版本引入都需要）
         syncToBaseline(applyDTO);
+        log.info("syncToSoftware end: implApplyNo={}", implApplyNo);
     }
 
     /**
@@ -225,6 +258,21 @@ public class OssImplApplyService extends ServiceImpl<OssImplApplyInfoMapper, Oss
      * 同步数据到版本清单表（首次引入和新版本引入都需要）
      */
     private void syncToBaseline(OssImplApplyDTO applyDTO) {
+        log.info("syncToBaseline start: swId={}, swName={}, swVersion={}", applyDTO.getSwId(), applyDTO.getSwName(), applyDTO.getSwVersion());
+
+        // 检查该版本是否已存在于版本清单表，避免重复插入
+        if (applyDTO.getSwId() != null && applyDTO.getSwVersion() != null) {
+            LambdaQueryWrapper<OssSoftwareBaseline> checkWrapper = new LambdaQueryWrapper<>();
+            checkWrapper.eq(OssSoftwareBaseline::getSwId, applyDTO.getSwId())
+                   .eq(OssSoftwareBaseline::getSwVersion, applyDTO.getSwVersion())
+                   .eq(OssSoftwareBaseline::getLogicStatus, 0);
+            long existingCount = baselineMapper.selectCount(checkWrapper);
+            if (existingCount > 0) {
+                log.warn("syncToBaseline: version already exists, skip insert. swId={}, swVersion={}", applyDTO.getSwId(), applyDTO.getSwVersion());
+                return;
+            }
+        }
+
         OssSoftwareBaseline baseline = new OssSoftwareBaseline();
         baseline.setSwId(applyDTO.getSwId());
         baseline.setSwName(applyDTO.getSwName());
@@ -247,6 +295,7 @@ public class OssImplApplyService extends ServiceImpl<OssImplApplyInfoMapper, Oss
         baseline.setDataSrcFlag("0"); // 人工引入
         baseline.setCreateMode(0);
         baselineMapper.insert(baseline);
+        log.info("syncToBaseline end: inserted baseline id={}", baseline.getId());
     }
 
     private String generateApplyNo() {

@@ -87,6 +87,15 @@ public class OssImplApplyController {
         return Result.success(Map.of("exists", exists));
     }
 
+    @GetMapping("/check-version-exists")
+    @Operation(summary = "检查软件特定版本是否已存在于版本清单表(用于新版本引入校验)")
+    public Result<Map<String, Boolean>> checkVersionExists(String swId, String swVersion) {
+        log.info("checkVersionExists API called: swId={}, swVersion={}", swId, swVersion);
+        boolean exists = implApplyService.checkVersionExistsInBaseline(swId, swVersion);
+        log.info("checkVersionExists result: exists={}", exists);
+        return Result.success(Map.of("exists", exists));
+    }
+
     @GetMapping("/supplementary/{implApplyNo}")
     @Operation(summary = "获取申请拓展信息")
     public Result<OssImplApplySuplDTO> getSupplementary(@PathVariable String implApplyNo) {

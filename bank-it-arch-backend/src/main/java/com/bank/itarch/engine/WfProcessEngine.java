@@ -270,10 +270,14 @@ public class WfProcessEngine {
 
         // 流转完成后，检查是否需要同步数据到软件表
         // 只有 OSS_IMPL_APPLY 类型且流程实例状态为 COMPLETED 时才同步
-        if ("OSS_IMPL_APPLY".equals(context.getInstance().getBusinessType())
-            && "COMPLETED".equals(context.getInstance().getStatus())) {
+        // 重新从数据库查询实例状态，因为 continueFlow 可能会修改实例状态
+        WfInstance completedInstance = instanceMapper.selectById(task.getInstanceId());
+        log.info("流程审批完成，检查同步: instanceId={}, status={}, businessType={}",
+                completedInstance.getId(), completedInstance.getStatus(), completedInstance.getBusinessType());
+        if ("OSS_IMPL_APPLY".equals(completedInstance.getBusinessType())
+            && "COMPLETED".equals(completedInstance.getStatus())) {
             try {
-                String businessKey = context.getInstance().getBusinessKey();
+                String businessKey = completedInstance.getBusinessKey();
                 if (businessKey != null && !businessKey.isEmpty()) {
                     // 根据UUID获取申请信息，然后调用同步方法
                     var applyDTO = ossImplApplyService.getById(businessKey);

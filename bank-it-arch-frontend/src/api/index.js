@@ -442,6 +442,8 @@ export const ossImplApplyApi = {
   updateSupplementary: (implApplyNo, data) => api.put(`/oss/impl/apply/supplementary/${implApplyNo}`, data),
   // 检查软件名称和版本是否已存在（用于首次引入校验）
   checkDuplicate: (swName, swVersion) => api.get('/oss/impl/apply/check-duplicate', { params: { swName, swVersion } }),
+  // 检查软件特定版本是否已存在于版本清单表（用于新版本引入校验）
+  checkVersionExists: (swId, swVersion) => api.get('/oss/impl/apply/check-version-exists', { params: { swId, swVersion } }),
   // 启动审批流程
   startProcess: (data) => api.post('/oss/impl/apply/start-process', data),
   // 获取审批轨迹

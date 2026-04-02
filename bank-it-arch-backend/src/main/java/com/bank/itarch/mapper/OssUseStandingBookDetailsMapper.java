@@ -12,5 +12,5 @@ public interface OssUseStandingBookDetailsMapper extends BaseMapper<OssUseStandi
      * 根据 swName + swVersion + appNo 硬删除 detail 表数据
      */
     @Select("DELETE FROM oss_use_standing_book_details_info WHERE sw_name = #{swName} AND sw_version = #{swVersion} AND app_no = #{appNo}")
-    int hardDeleteBySwKey(@Param("swName") String swName, @Param("swVersion") String swVersion, @Param("appNo") String appNo);
+    Integer hardDeleteBySwKey(@Param("swName") String swName, @Param("swVersion") String swVersion, @Param("appNo") String appNo);
 }

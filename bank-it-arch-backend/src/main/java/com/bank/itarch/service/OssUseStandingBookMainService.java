@@ -189,7 +189,7 @@ public class OssUseStandingBookMainService extends ServiceImpl<OssUseStandingBoo
             // 创建 detail 记录（每行一条）
             for (OssUseStandingBookImportDTO row : groupRows) {
                 OssUseStandingBookDetails detail = new OssUseStandingBookDetails();
-                detail.setId(UUID.randomUUID().toString());
+                detail.setId(UUID.randomUUID().toString().replace("-", ""));
                 detail.setParentId(main.getId());
                 detail.setSwName(swName);
                 detail.setSwVersion(swVersion);
