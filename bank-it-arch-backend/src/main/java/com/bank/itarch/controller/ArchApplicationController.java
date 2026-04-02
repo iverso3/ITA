@@ -12,6 +12,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.File;
 import java.util.List;
 import java.util.Map;
 
@@ -89,6 +91,32 @@ public class ArchApplicationController {
             @RequestParam(required = false) Long departmentId) {
         List<ArchApplication> list = applicationService.exportList(keyword, status, lifecycle, departmentId);
         return Result.success(list);
+    }
+
+    @GetMapping("/applications/import/template")
+    @Operation(summary = "下载应用导入模板")
+    public void getImportTemplate(HttpServletResponse response) {
+        try {
+            String filePath = applicationService.generateImportTemplate();
+            File file = new File(filePath);
+            if (!file.exists()) {
+                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                return;
+            }
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setHeader("Content-Disposition",
+                "attachment;filename*=UTF-8''" + java.net.URLEncoder.encode(file.getName(), "UTF-8"));
+            try (java.io.InputStream is = new java.io.FileInputStream(file);
+                 java.io.OutputStream os = response.getOutputStream()) {
+                byte[] buffer = new byte[8192];
+                int bytesRead;
+                while ((bytesRead = is.read(buffer)) != -1) {
+                    os.write(buffer, 0, bytesRead);
+                }
+            }
+        } catch (Exception e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        }
     }
 
     @PostMapping("/applications/import")
