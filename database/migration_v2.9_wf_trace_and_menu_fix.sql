@@ -30,12 +30,13 @@ UPDATE sys_menu SET sort_order = 0 WHERE id = 9001;  -- 首页
 UPDATE sys_menu SET sort_order = 2 WHERE id = 2;     -- CMDB管理
 UPDATE sys_menu SET sort_order = 3 WHERE id = 2000;  -- 企业资产
 UPDATE sys_menu SET sort_order = 4 WHERE id = 2002;  -- 开源软件资产管理
-UPDATE sys_menu SET sort_order = 5 WHERE id = 7;    -- 报表中心
-UPDATE sys_menu SET sort_order = 6 WHERE id = 8;     -- 系统管理
-UPDATE sys_menu SET sort_order = 7 WHERE id = 2004;  -- 元模型管理
+UPDATE sys_menu SET sort_order = 5 WHERE id = 6;     -- 建模工具
+UPDATE sys_menu SET sort_order = 6 WHERE id = 7;    -- 报表中心
+UPDATE sys_menu SET sort_order = 7 WHERE id = 8;     -- 系统管理
+UPDATE sys_menu SET sort_order = 8 WHERE id = 2004;  -- 元模型管理
 
--- Move 建模工具 under 开源软件资产管理
-UPDATE sys_menu SET parent_id = 2002, sort_order = 4 WHERE id = 6;
+-- Move 建模工具 back to top level (after 开源软件资产管理)
+UPDATE sys_menu SET parent_id = 0, sort_order = 5 WHERE id = 6;
 
 -- Create 我的工作台 category (if not exists)
 INSERT IGNORE INTO sys_menu (id, parent_id, tree_path, menu_code, menu_name, menu_type, icon, path, component, sort_order, is_visible, is_active, deleted, create_time, update_time)
