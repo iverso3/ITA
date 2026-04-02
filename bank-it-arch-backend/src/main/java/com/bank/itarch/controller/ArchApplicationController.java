@@ -97,22 +97,24 @@ public class ArchApplicationController {
     @Operation(summary = "下载应用导入模板")
     public void getImportTemplate(HttpServletResponse response) {
         try {
-            String filePath = applicationService.generateImportTemplate();
-            File file = new File(filePath);
-            if (!file.exists()) {
+            // 直接读取 classpath 中的静态模板文件
+            java.io.InputStream is = getClass().getClassLoader()
+                .getResourceAsStream("template/application_import_template.xlsx");
+            if (is == null) {
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
                 return;
             }
             response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             response.setHeader("Content-Disposition",
-                "attachment;filename*=UTF-8''" + java.net.URLEncoder.encode(file.getName(), "UTF-8"));
-            try (java.io.InputStream is = new java.io.FileInputStream(file);
-                 java.io.OutputStream os = response.getOutputStream()) {
+                "attachment;filename*=UTF-8''application_import_template.xlsx");
+            try (java.io.OutputStream os = response.getOutputStream()) {
                 byte[] buffer = new byte[8192];
                 int bytesRead;
                 while ((bytesRead = is.read(buffer)) != -1) {
                     os.write(buffer, 0, bytesRead);
                 }
+            } finally {
+                is.close();
             }
         } catch (Exception e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
