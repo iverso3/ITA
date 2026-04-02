@@ -14,8 +14,17 @@ import com.bank.itarch.model.entity.ArchDependency;
 import com.bank.itarch.model.entity.ArchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import com.bank.itarch.model.dto.ArchApplicationImportDTO;
+import com.bank.itarch.model.dto.ImportResult;
+import com.bank.itarch.util.ApplicationImportExcelUtil;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -114,9 +123,216 @@ public class ArchApplicationService extends ServiceImpl<ArchApplicationMapper, A
         return list(wrapper);
     }
 
-    public int importList(org.springframework.web.multipart.MultipartFile file) throws Exception {
-        // Excel导入实现
-        throw new UnsupportedOperationException("Excel导入功能开发中");
+    private static final String TEMPLATE_DIR = "template/";
+
+    /**
+     * 生成导入模板文件，返回文件路径
+     */
+    public String generateImportTemplate() throws IOException {
+        String filename = "application_import_template_"
+            + new SimpleDateFormat("yyyyMMddHHmmss").format(new Date()) + ".xlsx";
+        String filePath = TEMPLATE_DIR + filename;
+
+        // 确保目录存在
+        File dir = new File(TEMPLATE_DIR);
+        if (!dir.exists()) {
+            dir.mkdirs();
+        }
+
+        try (FileOutputStream fos = new FileOutputStream(filePath)) {
+            ApplicationImportExcelUtil.generateTemplate(fos);
+        }
+        return filePath;
+    }
+
+    @Transactional
+    public ImportResult importList(MultipartFile file) throws Exception {
+        // 1. 解析 Excel
+        List<ArchApplicationImportDTO> rows;
+        try {
+            rows = ApplicationImportExcelUtil.parseExcel(file.getInputStream());
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(400, e.getMessage());
+        } catch (Exception e) {
+            throw new BusinessException(400, "Excel解析失败: " + e.getMessage());
+        }
+
+        if (rows.isEmpty()) {
+            throw new BusinessException(400, "文件不能为空");
+        }
+
+        // 2. 校验空行
+        List<ImportResult.ImportError> errors = new ArrayList<>();
+        List<ArchApplicationImportDTO> validRows = new ArrayList<>();
+        for (int i = 0; i < rows.size(); i++) {
+            ArchApplicationImportDTO row = rows.get(i);
+            if (!StringUtils.hasText(row.getAppCode()) || !StringUtils.hasText(row.getAppName())) {
+                errors.add(new ImportResult.ImportError(i + 2, "appCode/appName 不能为空"));
+            } else {
+                validRows.add(row);
+            }
+        }
+
+        // 3. Upsert
+        int updatedCount = 0;
+        int createdCount = 0;
+        for (ArchApplicationImportDTO dto : validRows) {
+            LambdaQueryWrapper<ArchApplication> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(ArchApplication::getAppCode, dto.getAppCode());
+            ArchApplication existing = baseMapper.selectOne(wrapper);
+
+            if (existing != null) {
+                applyDtoToEntity(existing, dto);
+                baseMapper.updateById(existing);
+                updatedCount++;
+            } else {
+                ArchApplication entity = new ArchApplication();
+                applyDtoToEntity(entity, dto);
+                entity.setAppCode(dto.getAppCode());
+                baseMapper.insert(entity);
+                createdCount++;
+            }
+        }
+
+        if (!errors.isEmpty()) {
+            return ImportResult.error(rows.size(), errors);
+        }
+        return ImportResult.ok(rows.size(), validRows.size(), updatedCount, createdCount);
+    }
+
+    private void applyDtoToEntity(ArchApplication entity, ArchApplicationImportDTO dto) {
+        if (dto.getAppName() != null) entity.setAppName(dto.getAppName());
+        if (dto.getAppNameEn() != null) entity.setAppNameEn(dto.getAppNameEn());
+        if (dto.getAppType() != null) entity.setAppType(dto.getAppType());
+        if (dto.getImportanceLevel() != null) entity.setImportanceLevel(dto.getImportanceLevel());
+        if (dto.getSystemLayer() != null) entity.setSystemLayer(dto.getSystemLayer());
+        if (dto.getLifecycle() != null) entity.setLifecycle(dto.getLifecycle());
+        if (dto.getStatus() != null) entity.setStatus(dto.getStatus());
+        else entity.setStatus("PLANNING");
+        if (dto.getDepartmentName() != null) entity.setDepartmentName(dto.getDepartmentName());
+        if (dto.getImplementationUnit() != null) entity.setImplementationUnit(dto.getImplementationUnit());
+        if (dto.getImplementationDivision() != null) entity.setImplementationDivision(dto.getImplementationDivision());
+        if (dto.getImplementationTeam() != null) entity.setImplementationTeam(dto.getImplementationTeam());
+        if (dto.getGoLiveDate() != null) entity.setGoLiveDate(dto.getGoLiveDate());
+        if (dto.getRetireDate() != null) entity.setRetireDate(dto.getRetireDate());
+
+        if (dto.getIsInternetApp() != null) entity.setIsInternetApp(dto.getIsInternetApp());
+        if (dto.getIsPaymentApp() != null) entity.setIsPaymentApp(dto.getIsPaymentApp());
+        if (dto.getIsElectronicBankingApp() != null) entity.setIsElectronicBankingApp(dto.getIsElectronicBankingApp());
+        if (dto.getIsOnlineBankingApp() != null) entity.setIsOnlineBankingApp(dto.getIsOnlineBankingApp());
+        if (dto.getIsMobileApp() != null) entity.setIsMobileApp(dto.getIsMobileApp());
+        if (dto.getIsBillApp() != null) entity.setIsBillApp(dto.getIsBillApp());
+        if (dto.getIsInternetFinanceApp() != null) entity.setIsInternetFinanceApp(dto.getIsInternetFinanceApp());
+
+        // parentAppName -> parentAppId
+        if (StringUtils.hasText(dto.getParentAppName())) {
+            LambdaQueryWrapper<ArchApplication> parentWrapper = new LambdaQueryWrapper<>();
+            parentWrapper.eq(ArchApplication::getAppName, dto.getParentAppName()).last("LIMIT 1");
+            ArchApplication parent = baseMapper.selectOne(parentWrapper);
+            if (parent != null) {
+                entity.setParentAppId(parent.getId());
+            }
+        }
+
+        // 处理 ext_attrs JSON
+        Map<String, Object> extAttrs = new HashMap<>();
+        if (StringUtils.hasText(entity.getExtAttrs())) {
+            try {
+                extAttrs = new com.fasterxml.jackson.databind.ObjectMapper().readValue(
+                    entity.getExtAttrs(), Map.class);
+            } catch (Exception e) {
+                extAttrs = new HashMap<>();
+            }
+        }
+
+        setExtAttr(extAttrs, dto.getMainBusinessDomain(), "mainBusinessDomain");
+        setExtAttr(extAttrs, dto.getSecondaryBusinessDomain(), "secondaryBusinessDomain");
+        setExtAttr(extAttrs, dto.getDescription(), "description");
+        setExtAttr(extAttrs, dto.getRemark(), "remark");
+        setExtAttr(extAttrs, dto.getServiceObject(), "serviceObject");
+        setExtAttr(extAttrs, dto.getSystemProtectionLevel(), "systemProtectionLevel");
+        setExtAttr(extAttrs, dto.getProtectionLevel(), "protectionLevel");
+        setExtAttr(extAttrs, dto.getImplementationMethod(), "implementationMethod");
+        setExtAttr(extAttrs, dto.getImplementationType(), "implementationType");
+        setExtAttr(extAttrs, dto.getLoginUserField(), "loginUserField");
+        setExtAttr(extAttrs, dto.getLoginPasswordField(), "loginPasswordField");
+        setExtAttr(extAttrs, dto.getIsDeployedDmz(), "isDeployedDmz");
+        setExtAttr(extAttrs, dto.getHasUploadFunction(), "hasUploadFunction");
+        setExtAttr(extAttrs, dto.getPwdErrorFreezeMechanism(), "pwdErrorFreezeMechanism");
+        setExtAttr(extAttrs, dto.getHasOutboundRequest(), "hasOutboundRequest");
+        setExtAttr(extAttrs, dto.getOutboundRequestDesc(), "outboundRequestDesc");
+        setExtAttr(extAttrs, dto.getUploadFunctionDesc(), "uploadFunctionDesc");
+        setExtAttr(extAttrs, dto.getUploadFilePath(), "uploadFilePath");
+        setExtAttr(extAttrs, dto.getUploadPathExecutable(), "uploadPathExecutable");
+        setExtAttr(extAttrs, dto.getUploadFileTypes(), "uploadFileTypes");
+        setExtAttr(extAttrs, dto.getHasDownloadFunction(), "hasDownloadFunction");
+        setExtAttr(extAttrs, dto.getDownloadFunctionDesc(), "downloadFunctionDesc");
+        setExtAttr(extAttrs, dto.getDownloadFileTypes(), "downloadFileTypes");
+        setExtAttr(extAttrs, dto.getIsAppApplication(), "isAppApplication");
+        setExtAttr(extAttrs, dto.getOpenSourceInfo(), "openSourceInfo");
+        setExtAttr(extAttrs, dto.getAccessUrl(), "accessUrl");
+        setExtAttr(extAttrs, dto.getDomainName(), "domainName");
+        setExtAttr(extAttrs, dto.getNetworkMode(), "networkMode");
+        setExtAttr(extAttrs, dto.getAccessType(), "accessType");
+        setExtAttr(extAttrs, dto.getVendorInfo(), "vendorInfo");
+        setExtAttr(extAttrs, dto.getAuthMethod(), "authMethod");
+        setExtAttr(extAttrs, dto.getHasThirdPartyIntegration(), "hasThirdPartyIntegration");
+        setExtAttr(extAttrs, dto.getThirdPartyIntegrationDesc(), "thirdPartyIntegrationDesc");
+        setExtAttr(extAttrs, dto.getIsInternetLine(), "isInternetLine");
+        setExtAttr(extAttrs, dto.getXcCloudStatus(), "xcCloudStatus");
+        setExtAttr(extAttrs, dto.getServerXcStatus(), "serverXcStatus");
+        setExtAttr(extAttrs, dto.getIsFullXc(), "isFullXc");
+        setExtAttr(extAttrs, dto.getHasThirdPartyProduct(), "hasThirdPartyProduct");
+        setExtAttr(extAttrs, dto.getThirdPartyIsXc(), "thirdPartyIsXc");
+        setExtAttr(extAttrs, dto.getXcClassification(), "xcClassification");
+        setExtAttr(extAttrs, dto.getDbServerXcStatus(), "dbServerXcStatus");
+        setExtAttr(extAttrs, dto.getDbServerOs(), "dbServerOs");
+        setExtAttr(extAttrs, dto.getDatabaseXcStatus(), "databaseXcStatus");
+        setExtAttr(extAttrs, dto.getServerXcDesc(), "serverXcDesc");
+        setExtAttr(extAttrs, dto.getDatabaseXcDesc(), "databaseXcDesc");
+        setExtAttr(extAttrs, dto.getPartialXcDesc(), "partialXcDesc");
+        setExtAttr(extAttrs, dto.getThirdPartyXcDesc(), "thirdPartyXcDesc");
+        setExtAttr(extAttrs, dto.getXcOverallDesc(), "xcOverallDesc");
+        setExtAttr(extAttrs, dto.getCustomerType(), "customerType");
+        setExtAttr(extAttrs, dto.getServiceTimeType(), "serviceTimeType");
+        setExtAttr(extAttrs, dto.getInternalUserScope(), "internalUserScope");
+        setExtAttr(extAttrs, dto.getServiceWindowDesc(), "serviceWindowDesc");
+        setExtAttr(extAttrs, dto.getUsageScopeDesc(), "usageScopeDesc");
+        setExtAttr(extAttrs, dto.getCityRpo(), "cityRpo");
+        setExtAttr(extAttrs, dto.getCityRto(), "cityRto");
+        setExtAttr(extAttrs, dto.getCityActiveType(), "cityActiveType");
+        setExtAttr(extAttrs, dto.getHasCityEnvironment(), "hasCityEnvironment");
+        setExtAttr(extAttrs, dto.getRemoteRpo(), "remoteRpo");
+        setExtAttr(extAttrs, dto.getRemoteRto(), "remoteRto");
+        setExtAttr(extAttrs, dto.getRemoteActiveType(), "remoteActiveType");
+        setExtAttr(extAttrs, dto.getHasDrEnvironment(), "hasDrEnvironment");
+        setExtAttr(extAttrs, dto.getOpsLevel(), "opsLevel");
+        setExtAttr(extAttrs, dto.getOldOpsLevel(), "oldOpsLevel");
+        setExtAttr(extAttrs, dto.getOpsUnit(), "opsUnit");
+        setExtAttr(extAttrs, dto.getRemoteAccessClass(), "remoteAccessClass");
+        setExtAttr(extAttrs, dto.getIsChangeAutomation(), "isChangeAutomation");
+        setExtAttr(extAttrs, dto.getChangeDeployTime(), "changeDeployTime");
+        setExtAttr(extAttrs, dto.getChangeDeployTimeDesc(), "changeDeployTimeDesc");
+        setExtAttr(extAttrs, dto.getMainBusinessHours(), "mainBusinessHours");
+        setExtAttr(extAttrs, dto.getDataAssetApprovalDept(), "dataAssetApprovalDept");
+        setExtAttr(extAttrs, dto.getIsContainerized(), "isContainerized");
+        setExtAttr(extAttrs, dto.getDeploymentEnvironment(), "deploymentEnvironment");
+        setExtAttr(extAttrs, dto.getDeploymentLocation(), "deploymentLocation");
+        setExtAttr(extAttrs, dto.getDeploymentLocationDesc(), "deploymentLocationDesc");
+        setExtAttr(extAttrs, dto.getDrLevel(), "drLevel");
+        setExtAttr(extAttrs, dto.getDrRecoveryLevel(), "drRecoveryLevel");
+
+        try {
+            entity.setExtAttrs(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(extAttrs));
+        } catch (Exception e) {
+            // ignore
+        }
+    }
+
+    private void setExtAttr(Map<String, Object> extAttrs, Object value, String key) {
+        if (value != null) {
+            extAttrs.put(key, value);
+        }
     }
 
     /**

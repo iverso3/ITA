@@ -1,5 +1,6 @@
 package com.bank.itarch.controller;
 
+import com.bank.itarch.common.BusinessException;
 import com.bank.itarch.common.PageQuery;
 import com.bank.itarch.common.PageResult;
 import com.bank.itarch.common.Result;
@@ -92,10 +93,12 @@ public class ArchApplicationController {
 
     @PostMapping("/applications/import")
     @Operation(summary = "导入应用")
-    public Result<Integer> importApplications(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+    public Result<com.bank.itarch.model.dto.ImportResult> importApplications(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
         try {
-            int count = applicationService.importList(file);
-            return Result.success("成功导入 " + count + " 条数据", count);
+            com.bank.itarch.model.dto.ImportResult result = applicationService.importList(file);
+            return Result.success(result);
+        } catch (BusinessException e) {
+            return Result.error(e.getMessage());
         } catch (Exception e) {
             return Result.error("导入失败: " + e.getMessage());
         }
