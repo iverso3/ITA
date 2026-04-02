@@ -90,6 +90,7 @@ export const archAppApi = {
   dependencies: (id) => api.get(`/arch/applications/${id}/dependencies`),
   export: (params) => api.get('/arch/applications/export', { params, responseType: 'blob' }),
   import: (data) => api.post('/arch/applications/import', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  getImportTemplate: () => api.get('/arch/applications/import/template', { responseType: 'blob' }),
   getLayeredTree: () => api.get('/arch/applications/layered-tree'),
   searchApps: (keyword) => api.get('/arch/applications/search', { params: { keyword } })
 }

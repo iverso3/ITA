@@ -974,8 +974,8 @@ const checkAll = ref(true)
 const isIndeterminate = ref(false)
 const selectedExportFields = ref([
   'appCode', 'appName', 'appNameEn', 'status', 'departmentName',
-  'implementationDivision', 'implementationTeam', 'importanceLevel',
-  'recordStatus', 'version'
+  'implementationUnit', 'implementationDivision', 'implementationTeam',
+  'importanceLevel', 'systemLayer'
 ])
 
 const exportFieldGroups = [
@@ -1186,22 +1186,23 @@ const handleFileChange = (file) => {
   importFile.value = file.raw
 }
 
-const handleDownloadTemplate = () => {
-  const templateData = [{
-    appCode: '',
-    appName: '',
-    appNameEn: '',
-    appType: '交易',
-    importanceLevel: '一般',
-    systemLayer: '',
-    status: 'PLANNING',
-    departmentName: '',
-    implementationUnit: '',
-    implementationDivision: '',
-    implementationTeam: '',
-    description: ''
-  }]
-  exportToExcel(templateData, '应用导入模板')
+const handleDownloadTemplate = async () => {
+  try {
+    loading.value = true
+    const res = await archAppApi.getImportTemplate()
+    const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'application_import_template.xlsx'
+    link.click()
+    window.URL.revokeObjectURL(url)
+    ElMessage.success('模板下载成功')
+  } catch (e) {
+    ElMessage.error('模板下载失败')
+  } finally {
+    loading.value = false
+  }
 }
 
 const handleDoImport = async () => {
