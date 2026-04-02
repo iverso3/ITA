@@ -257,6 +257,7 @@ export default {
     const handleUserCommand = (command) => {
       switch (command) {
         case 'logout':
+          tabsStore.closeAllTabs()
           authStore.logout()
           router.push('/login')
           break
