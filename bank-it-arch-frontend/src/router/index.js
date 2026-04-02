@@ -51,6 +51,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/arch/application/:id',
+    name: 'ArchApplicationDetail',
+    component: () => import('@/views/arch/ApplicationDetail.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/tech/overview',
     name: 'TechOverview',
     component: () => import('@/views/tech/Overview.vue'),
@@ -93,9 +99,45 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/wf/task/:id',
+    name: 'WfTaskDetail',
+    component: () => import('@/views/wf/TaskDetail.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/wf/done',
     name: 'WfDone',
     component: () => import('@/views/wf/Done.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/wf/my-applications',
+    name: 'WfMyApplications',
+    component: () => import('@/views/wf/MyApplications.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/wf/modeler/:id?',
+    name: 'WfModeler',
+    component: () => import('@/views/wf/Modeler.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/wf/definition',
+    name: 'WfDefinition',
+    component: () => import('@/views/wf/DefinitionList.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/wf/instance',
+    name: 'WfInstance',
+    component: () => import('@/views/wf/InstanceList.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/wf/instance/:id',
+    name: 'WfInstanceDetail',
+    component: () => import('@/views/wf/InstanceDetail.vue'),
     meta: { requiresAuth: true }
   },
   {
@@ -156,6 +198,77 @@ const routes = [
     path: '/system/log',
     name: 'SystemLog',
     component: () => import('@/views/system/Log.vue'),
+    meta: { requiresAuth: true }
+  },
+  // 流程角色管理模块
+  {
+    path: '/flowRole/flowRole',
+    name: 'FlowRole',
+    component: () => import('@/views/flowRole/FlowRole.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/flowRole/userRel',
+    name: 'FlowRoleUserRel',
+    component: () => import('@/views/flowRole/FlowRoleUserRel.vue'),
+    meta: { requiresAuth: true }
+  },
+  // 开源软件管理模块
+  {
+    path: '/oss/software',
+    name: 'OssSoftware',
+    component: () => import('@/views/oss/SoftwareList.vue'),
+    meta: { requiresAuth: true }
+  },
+  // 开源软件引入申请模块
+  {
+    path: '/oss/impl-apply',
+    name: 'OssImplApply',
+    component: () => import('@/views/oss/ImplApplyList.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/oss/impl-apply/form',
+    name: 'OssImplApplyForm',
+    component: () => import('@/views/oss/ImplApplyForm.vue'),
+    meta: { requiresAuth: true }
+  },
+  // 开源软件使用台账管理
+  {
+    path: '/oss/stdBook',
+    name: 'OssStdBook',
+    component: () => import('@/views/oss/StdBook.vue'),
+    meta: { requiresAuth: true }
+  },
+  // Meta模块 - 元模型管理
+  {
+    path: '/meta/model',
+    name: 'MetaModel',
+    component: () => import('@/views/meta/ModelDesigner.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/meta/version',
+    name: 'MetaVersion',
+    component: () => import('@/views/meta/VersionManage.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/meta/dynamic-form/:modelCode?',
+    name: 'MetaDynamicForm',
+    component: () => import('@/views/meta/DynamicForm.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/meta/dynamic-table/:modelCode?',
+    name: 'MetaDynamicTable',
+    component: () => import('@/views/meta/DynamicTable.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/meta/topology',
+    name: 'MetaTopology',
+    component: () => import('@/views/meta/TopologyGraph.vue'),
     meta: { requiresAuth: true }
   }
 ]
