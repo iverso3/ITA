@@ -25,13 +25,13 @@ api.interceptors.response.use(
   response => {
     const res = response.data
     if (res.code !== 200) {
-      console.error('API Error:', res.message)
+      console.error('API Error:', res.message, res)
       return Promise.reject(new Error(res.message || 'Error'))
     }
     return res
   },
   error => {
-    console.error('Request Error:', error.message)
+    console.error('Request Error:', error.message, error.response?.data)
     return Promise.reject(error)
   }
 )
@@ -87,7 +87,11 @@ export const archAppApi = {
   delete: (id) => api.delete(`/arch/applications/${id}`),
   modules: (id) => api.get(`/arch/applications/${id}/modules`),
   services: (id) => api.get(`/arch/applications/${id}/services`),
-  dependencies: (id) => api.get(`/arch/applications/${id}/dependencies`)
+  dependencies: (id) => api.get(`/arch/applications/${id}/dependencies`),
+  export: (params) => api.get('/arch/applications/export', { params, responseType: 'blob' }),
+  import: (data) => api.post('/arch/applications/import', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  getLayeredTree: () => api.get('/arch/applications/layered-tree'),
+  searchApps: (keyword) => api.get('/arch/applications/search', { params: { keyword } })
 }
 
 export const archModuleApi = {
@@ -145,24 +149,51 @@ export const dataFlowApi = {
 
 // ===== 审批流程 =====
 export const wfApi = {
+  // 流程定义
   definitions: (params) => api.get('/wf/definitions', { params }),
   definitionDetail: (id) => api.get(`/wf/definitions/${id}`),
+  definitionCreate: (data) => api.post('/wf/definitions', data),
+  definitionUpdate: (id, data) => api.put(`/wf/definitions/${id}`, data),
+  definitionToggleStatus: (id) => api.patch(`/wf/definitions/${id}/status`),
+
+  // 流程建模
+  modeler: {
+    getModel: (definitionId) => api.get(`/wf/modeler/${definitionId}`),
+    saveNodes: (definitionId, nodes) => api.put(`/wf/modeler/${definitionId}/nodes`, nodes),
+    saveLines: (definitionId, lines) => api.put(`/wf/modeler/${definitionId}/lines`, lines),
+    validate: (model) => api.post('/wf/modeler/validate', model),
+    publish: (definitionId, changeLog) => api.post(`/wf/modeler/${definitionId}/publish`, { changeLog })
+  },
+
+  // 流程实例
   instances: (params) => api.get('/wf/instances', { params }),
   instanceDetail: (id) => api.get(`/wf/instances/${id}`),
   instanceHistory: (id) => api.get(`/wf/instances/${id}/history`),
+  instanceTrace: (id) => api.get(`/wf/instances/${id}/trace`),
+  instanceTasks: (id) => api.get(`/wf/instances/${id}/tasks`),
+  startProcess: (data) => api.post('/wf/instances', data),
+  withdrawInstance: (id) => api.post(`/wf/instances/${id}/withdraw`),
+  terminateInstance: (id, reason) => api.post(`/wf/instances/${id}/terminate`, { reason }),
+  myApplications: (params) => api.get('/wf/instances/my-applications', { params }),
+  myDoneList: (params) => api.get('/wf/instances/my-done', { params }),
+
+  // 任务操作
   todoList: (params) => api.get('/wf/tasks/todo', { params }),
   doneList: (params) => api.get('/wf/tasks/done', { params }),
+  taskDetail: (id) => api.get(`/wf/tasks/${id}/detail`),
+  rejectNodes: (id) => api.get(`/wf/tasks/${id}/reject-nodes`),
   approve: (id, data) => api.post(`/wf/tasks/${id}/approve`, data),
   reject: (id, data) => api.post(`/wf/tasks/${id}/reject`, data),
   returnTask: (id, data) => api.post(`/wf/tasks/${id}/return`, data),
   transferTask: (id, data) => api.post(`/wf/tasks/${id}/transfer`, data),
   delegateTask: (id, data) => api.post(`/wf/tasks/${id}/delegate`, data),
-  withdrawInstance: (id) => api.post(`/wf/instances/${id}/withdraw`)
+  claimTask: (id, data) => api.post(`/wf/tasks/${id}/claim`, data)
 }
 
 // ===== 系统管理 =====
 export const sysUserApi = {
   list: (params) => api.get('/system/users', { params }),
+  listAll: () => api.get('/system/users/all'),
   detail: (id) => api.get(`/system/users/${id}`),
   create: (data) => api.post('/system/users', data),
   update: (id, data) => api.put(`/system/users/${id}`, data),
@@ -246,4 +277,184 @@ export const reportApi = {
   techStackPanorama: () => api.get('/report/panorama/tech-stacks'),
   dataDistribution: () => api.get('/report/panorama/data-distribution'),
   dataFlowPanorama: () => api.get('/report/panorama/data-flows')
+}
+
+// ===== Meta元模型管理 =====
+export const metaModelApi = {
+  list: () => api.get('/v1/meta/models/list'),
+  page: (params) => api.get('/v1/meta/models/page', { params }),
+  detail: (id) => api.get(`/v1/meta/models/${id}`),
+  create: (data) => api.post('/v1/meta/models', data),
+  update: (id, data) => api.put(`/v1/meta/models/${id}`, data),
+  delete: (id) => api.delete(`/v1/meta/models/${id}`),
+  getByCode: (code) => api.get(`/v1/meta/models/code/${code}`),
+  listByType: (type) => api.get(`/v1/meta/models/type/${type}`),
+  publish: (id) => api.post(`/v1/meta/publish/submit/${id}`),
+  archive: (id) => api.post(`/v1/meta/publish/archive/${id}`),
+  rollback: (id, version) => api.post(`/v1/meta/publish/rollback/${id}/${version}`)
+}
+
+export const metaFieldApi = {
+  listByModel: (modelId) => api.get(`/v1/meta/fields/model/${modelId}`),
+  queryableFields: (modelId) => api.get(`/v1/meta/fields/model/${modelId}/queryable`),
+  sensitiveFields: (modelId) => api.get(`/v1/meta/fields/model/${modelId}/sensitive`),
+  create: (modelId, data) => api.post(`/v1/meta/fields/${modelId}`, data),
+  update: (modelId, fieldId, data) => api.put(`/v1/meta/fields/${modelId}/${fieldId}`, data),
+  delete: (modelId, fieldId) => api.delete(`/v1/meta/fields/${modelId}/${fieldId}`),
+  batchCreate: (modelId, data) => api.post(`/v1/meta/fields/${modelId}/batch`, data),
+  reorder: (modelId, fieldIds) => api.put(`/v1/meta/fields/${modelId}/reorder`, fieldIds)
+}
+
+export const metaGroupApi = {
+  listByModel: (modelId) => api.get(`/v1/meta/groups/model/${modelId}`),
+  groupsWithFields: (modelId) => api.get(`/v1/meta/groups/model/${modelId}/with-fields`),
+  create: (modelId, data) => api.post(`/v1/meta/groups/${modelId}`, data),
+  update: (modelId, groupId, data) => api.put(`/v1/meta/groups/${modelId}/${groupId}`, data),
+  delete: (modelId, groupId) => api.delete(`/v1/meta/groups/${modelId}/${groupId}`)
+}
+
+export const metaRelationshipApi = {
+  listByModel: (modelId) => api.get(`/v1/meta/relationships/model/${modelId}`),
+  create: (data) => api.post('/v1/meta/relationships', data),
+  update: (id, data) => api.put(`/v1/meta/relationships/${id}`, data),
+  delete: (id) => api.delete(`/v1/meta/relationships/${id}`)
+}
+
+export const metaEntityApi = {
+  list: (modelId, params) => api.get(`/v1/meta/entities/page/${modelId}`, { params }),
+  detail: (id) => api.get(`/v1/meta/entities/${id}`),
+  getByBusinessId: (modelId, businessId) => api.get(`/v1/meta/entities/business/${modelId}/${businessId}`),
+  create: (data) => api.post('/v1/meta/entities', data),
+  batchCreate: (modelId, data) => api.post(`/v1/meta/entities/batch/${modelId}`, data),
+  update: (id, data) => api.put(`/v1/meta/entities/${id}`, data),
+  delete: (id) => api.delete(`/v1/meta/entities/${id}`),
+  batchDelete: (modelId, ids) => api.delete(`/v1/meta/entities/batch/${modelId}`, { data: ids }),
+  bindRelation: (sourceEntityId, relCode, targetEntityId) =>
+    api.post(`/v1/meta/entities/${sourceEntityId}/relations/${relCode}/${targetEntityId}`),
+  unbindRelation: (sourceEntityId, relCode, targetEntityId) =>
+    api.delete(`/v1/meta/entities/${sourceEntityId}/relations/${relCode}/${targetEntityId}`),
+  getRelations: (entityId) => api.get(`/v1/meta/entities/${entityId}/relations`),
+  getRelatedEntities: (entityId, relCode) => api.get(`/v1/meta/entities/${entityId}/relations/${relCode}`),
+  setFieldValue: (entityId, fieldCode, value) =>
+    api.put(`/v1/meta/entities/${entityId}/fields/${fieldCode}`, { value }),
+  setFieldValues: (entityId, values) =>
+    api.put(`/v1/meta/entities/${entityId}/fields`, values),
+  getAllFieldValues: (entityId) => api.get(`/v1/meta/entities/${entityId}/fields`)
+}
+
+export const metaDynamicApi = {
+  query: (modelCode, data) => api.post(`/v1/meta/dynamic/query/${modelCode}`, data),
+  get: (modelCode, id, selectFields) => api.get(`/v1/meta/dynamic/get/${modelCode}/${id}`, { params: { selectFields } }),
+  create: (modelCode, data) => api.post(`/v1/meta/dynamic/create/${modelCode}`, data),
+  update: (id, data) => api.put(`/v1/meta/dynamic/update/${id}`, data),
+  delete: (id) => api.delete(`/v1/meta/dynamic/delete/${id}`),
+  formConfig: (modelCode, formType) => api.get(`/v1/meta/dynamic/form-config/${modelCode}`, { params: { formType } }),
+  tableConfig: (modelCode) => api.get(`/v1/meta/dynamic/table-config/${modelCode}`),
+  fieldConfig: (modelCode, fieldCode) => api.get(`/v1/meta/dynamic/field-config/${modelCode}/${fieldCode}`),
+  options: (dictCode) => api.get(`/v1/meta/dynamic/options/${dictCode}`)
+}
+
+export const metaGraphApi = {
+  entityGraph: (entityId, depth) => api.get(`/v1/meta/graph/entity/${entityId}`, { params: { depth } }),
+  modelGraph: (modelId) => api.get(`/v1/meta/graph/model/${modelId}`),
+  recursiveQuery: (entityId, relCode, maxDepth) =>
+    api.get(`/v1/meta/graph/recursive/${entityId}`, { params: { relCode, maxDepth } }),
+  shortestPath: (sourceEntityId, targetEntityId) =>
+    api.get(`/v1/meta/graph/shortest-path`, { params: { sourceEntityId, targetEntityId } }),
+  batchQuery: (entityIds, depth) => api.post(`/v1/meta/graph/batch`, entityIds, { params: { depth } }),
+  detectCycle: (modelId) => api.get(`/v1/meta/graph/cycle/${modelId}`),
+  isolatedEntities: (modelId) => api.get(`/v1/meta/graph/isolated/${modelId}`),
+  stats: (modelId) => api.get(`/v1/meta/graph/stats/${modelId}`)
+}
+
+export const metaPublishApi = {
+  history: (modelId) => api.get(`/v1/meta/publish/history/${modelId}`),
+  active: (modelId) => api.get(`/v1/meta/publish/active/${modelId}`),
+  compare: (versionId1, versionId2) => api.get(`/v1/meta/publish/compare/${versionId1}/${versionId2}`),
+  submit: (modelId) => api.post(`/v1/meta/publish/submit/${modelId}`),
+  approve: (versionId, comment) => api.post(`/v1/meta/publish/approve/${versionId}`, { params: { approveComment: comment } }),
+  execute: (versionId) => api.post(`/v1/meta/publish/execute/${versionId}`),
+  archive: (versionId) => api.post(`/v1/meta/publish/archive/${versionId}`),
+  rollback: (recordId) => api.post(`/v1/meta/publish/rollback/${recordId}`),
+  rollbackToVersion: (modelId, targetVersion) => api.post(`/v1/meta/publish/rollback/${modelId}/${targetVersion}`)
+}
+
+// ===== 开源软件管理 =====
+export const ossSoftwareApi = {
+  list: (params) => api.get('/oss/software/list', { params }),
+  detail: (id) => api.get(`/oss/software/${id}`),
+  create: (data) => api.post('/oss/software', data),
+  update: (id, data) => api.put(`/oss/software/${id}`, data),
+  delete: (id) => api.delete(`/oss/software/${id}`),
+  export: (params) => api.get('/oss/software/export', { params })
+}
+
+// ===== OSS使用台账 =====
+export const ossUseStandingBookApi = {
+  // Main表
+  listMain: (params) => api.get('/oss/standing-book/main/list', { params }),
+  getMainById: (id) => api.get(`/oss/standing-book/main/${id}`),
+  createMain: (data) => api.post('/oss/standing-book/main', data),
+  updateMain: (id, data) => api.put(`/oss/standing-book/main/${id}`, data),
+  deleteMain: (id) => api.delete(`/oss/standing-book/main/${id}`),
+  exportMain: (params) => api.get('/oss/standing-book/main/export', { params }),
+  // Detail表
+  listDetails: (params) => api.get('/oss/standing-book/details', { params }),
+  getDetailById: (id) => api.get(`/oss/standing-book/details/${id}`),
+  createDetail: (data) => api.post('/oss/standing-book/details', data),
+  updateDetail: (id, data) => api.put(`/oss/standing-book/details/${id}`, data),
+  deleteDetail: (id) => api.delete(`/oss/standing-book/details/${id}`)
+}
+
+// ===== 开源软件版本管理 =====
+export const ossSoftwareBaselineApi = {
+  list: (params) => api.get('/oss/software/baseline/list', { params }),
+  detail: (id) => api.get(`/oss/software/baseline/${id}`),
+  create: (data) => api.post('/oss/software/baseline', data),
+  update: (id, data) => api.put(`/oss/software/baseline/${id}`, data),
+  delete: (id) => api.delete(`/oss/software/baseline/${id}`),
+  export: (params) => api.get('/oss/software/baseline/export', { params }),
+  // 介质文档
+  mediaList: (params) => api.get('/oss/software/baseline/media/list', { params }),
+  download: (filePath) => api.get('/oss/software/baseline/media/download', { params: { filePath }, responseType: 'blob' })
+}
+
+// ===== 开源软件引入申请 =====
+export const ossImplApplyApi = {
+  list: (params) => api.get('/oss/impl/apply/list', { params }),
+  detail: (id) => api.get(`/oss/impl/apply/${id}`),
+  detailByNo: (implApplyNo) => api.get(`/oss/impl/apply/no/${implApplyNo}`),
+  detailByUuid: (uuid) => api.get(`/oss/impl/apply/by-uuid/${uuid}`),
+  create: (data) => api.post('/oss/impl/apply', data),
+  update: (id, data) => api.put(`/oss/impl/apply/${id}`, data),
+  delete: (id) => api.delete(`/oss/impl/apply/${id}`),
+  // 获取软件列表（用于新版本引入下拉）
+  softwareList: (params) => api.get('/oss/impl/apply/software-list', { params }),
+  // 拓展信息
+  supplementary: (implApplyNo) => api.get(`/oss/impl/apply/supplementary/${implApplyNo}`),
+  updateSupplementary: (implApplyNo, data) => api.put(`/oss/impl/apply/supplementary/${implApplyNo}`, data),
+  // 启动审批流程
+  startProcess: (data) => api.post('/oss/impl/apply/start-process', data),
+  // 获取审批轨迹
+  trace: (implApplyNo) => api.get(`/oss/impl/apply/trace/${implApplyNo}`)
+}
+
+// ===== 流程角色管理 =====
+export const flowRoleApi = {
+  list: (params) => api.get('/flow-role', { params }),
+  listAll: () => api.get('/flow-role/all'),
+  detail: (id) => api.get(`/flow-role/${id}`),
+  create: (data) => api.post('/flow-role', data),
+  update: (id, data) => api.put(`/flow-role/${id}`, data),
+  delete: (id) => api.delete(`/flow-role/${id}`)
+}
+
+// ===== 用户流程角色管理 =====
+export const flowRoleUserRelApi = {
+  list: (params) => api.get('/flow-role-user-rel', { params }),
+  detail: (id) => api.get(`/flow-role-user-rel/${id}`),
+  create: (data) => api.post('/flow-role-user-rel', data),
+  update: (id, data) => api.put(`/flow-role-user-rel/${id}`, data),
+  delete: (id) => api.delete(`/flow-role-user-rel/${id}`),
+  check: (userId, flowRoleId) => api.get('/flow-role-user-rel/check', { params: { userId, flowRoleId } })
 }
