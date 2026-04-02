@@ -213,8 +213,8 @@ public class ArchApplicationService extends ServiceImpl<ArchApplicationMapper, A
         if (dto.getImplementationUnit() != null) entity.setImplementationUnit(dto.getImplementationUnit());
         if (dto.getImplementationDivision() != null) entity.setImplementationDivision(dto.getImplementationDivision());
         if (dto.getImplementationTeam() != null) entity.setImplementationTeam(dto.getImplementationTeam());
-        if (dto.getGoLiveDate() != null) entity.setGoLiveDate(dto.getGoLiveDate());
-        if (dto.getRetireDate() != null) entity.setRetireDate(dto.getRetireDate());
+        if (StringUtils.hasText(dto.getGoLiveDate())) entity.setGoLiveDate(dto.getGoLiveDate());
+        if (StringUtils.hasText(dto.getRetireDate())) entity.setRetireDate(dto.getRetireDate());
 
         if (dto.getIsInternetApp() != null) entity.setIsInternetApp(dto.getIsInternetApp());
         if (dto.getIsPaymentApp() != null) entity.setIsPaymentApp(dto.getIsPaymentApp());
