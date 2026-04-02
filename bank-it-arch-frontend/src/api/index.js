@@ -398,6 +398,13 @@ export const ossUseStandingBookApi = {
   updateMain: (id, data) => api.put(`/oss/standing-book/main/${id}`, data),
   deleteMain: (id) => api.delete(`/oss/standing-book/main/${id}`),
   exportMain: (params) => api.get('/oss/standing-book/main/export', { params }),
+  importMain: (file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post('/oss/standing-book/main/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
   // Detail表
   listDetails: (params) => api.get('/oss/standing-book/details', { params }),
   getDetailById: (id) => api.get(`/oss/standing-book/details/${id}`),
@@ -433,6 +440,8 @@ export const ossImplApplyApi = {
   // 拓展信息
   supplementary: (implApplyNo) => api.get(`/oss/impl/apply/supplementary/${implApplyNo}`),
   updateSupplementary: (implApplyNo, data) => api.put(`/oss/impl/apply/supplementary/${implApplyNo}`, data),
+  // 检查软件名称和版本是否已存在（用于首次引入校验）
+  checkDuplicate: (swName, swVersion) => api.get('/oss/impl/apply/check-duplicate', { params: { swName, swVersion } }),
   // 启动审批流程
   startProcess: (data) => api.post('/oss/impl/apply/start-process', data),
   // 获取审批轨迹
