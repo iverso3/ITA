@@ -2,6 +2,7 @@ package com.bank.itarch.controller;
 
 import com.bank.itarch.common.PageResult;
 import com.bank.itarch.common.Result;
+import com.bank.itarch.model.dto.ImportResult;
 import com.bank.itarch.model.dto.OssUseStandingBookDetailsDTO;
 import com.bank.itarch.model.dto.OssUseStandingBookMainDTO;
 import com.bank.itarch.model.dto.OssUseStandingBookPageQuery;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -60,6 +62,23 @@ public class OssUseStandingBookController {
     @Operation(summary = "导出台账主列表")
     public Result<List<OssUseStandingBookMainDTO>> exportMain(OssUseStandingBookPageQuery query) {
         return Result.success(mainService.listAllForExport(query));
+    }
+
+    @PostMapping("/main/import")
+    @Operation(summary = "导入台账主列表")
+    public Result<ImportResult> importMain(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty()) {
+            return Result.error("请选择要上传的Excel文件");
+        }
+        String filename = file.getOriginalFilename();
+        if (filename == null || (!filename.endsWith(".xlsx") && !filename.endsWith(".xls"))) {
+            return Result.error("仅支持 .xlsx 或 .xls 格式的Excel文件");
+        }
+        ImportResult result = mainService.importExcel(file);
+        if (result.getFailed() > 0) {
+            return Result.success("导入完成，部分数据失败", result);
+        }
+        return Result.success("导入成功", result);
     }
 
     // ==================== Detail表接口 ====================
